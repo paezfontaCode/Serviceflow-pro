@@ -1,0 +1,14 @@
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+dist/
+build/
+.venv/
+venv/
+.env
+.git
+.gitignore
+serviceflow.db
