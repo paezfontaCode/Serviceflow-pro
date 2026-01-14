@@ -1,4 +1,17 @@
 services:
+  db:
+    image: postgres:15-alpine
+    container_name: serviceflow-db
+    environment:
+      - POSTGRES_USER=serviceflow
+      - POSTGRES_PASSWORD=serviceflow_pass
+      - POSTGRES_DB=serviceflow_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: always
+
   backend:
     build:
       context: ./backend
@@ -10,7 +23,10 @@ services:
       - ./backend:/app
       - /app/venv
     environment:
-      - DATABASE_URL=sqlite:///./serviceflow.db
+      - DATABASE_URL=postgresql://serviceflow:serviceflow_pass@db:5432/serviceflow_db
+      - SECRET_KEY=your-secret-key-here
+    depends_on:
+      - db
     restart: always
 
   frontend:
@@ -22,11 +38,9 @@ services:
       - "3000:3000"
     depends_on:
       - backend
-    volumes:
-      - ./frontend:/app
-      - /app/node_modules
-      - /app/.next
     environment:
       - NEXT_PUBLIC_API_URL=http://localhost:8000/api/v1
-    command: npm run dev
     restart: always
+
+volumes:
+  postgres_data:

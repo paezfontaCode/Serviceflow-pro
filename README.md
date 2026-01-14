@@ -111,12 +111,52 @@ Esta versión incluye:
 ┌─────────────────────────────────────────────────────────────────┐
 │                    DATA PERSISTENCE                              │
 │  ┌─────────────────────────────────────────────────────────┐    │
-│  │  PostgreSQL (Production) / SQLite (Development)         │    │
-│  │  32 Tablas (13 Operacionales + 19 Financieras )
-│  │   Base de dato : serviceflow
+│  │  PostgreSQL (Production) / Docker Environment           │    │
+│  │  32 Tablas (13 Operacionales + 19 Financieras )         │    │
+│  │  Base de datos: serviceflow_db                          │    │
 │  └─────────────────────────────────────────────────────────┘    │
 └─────────────────────────────────────────────────────────────────┘
 ```
+
+---
+
+## 4. 🐳 DESPLIEGUE CON DOCKER (Recomendado)
+
+El sistema está configurado para ejecutarse completamente en contenedores Docker, lo que garantiza que todas las dependencias (Base de datos, Backend y Frontend) se configuren automáticamente.
+
+### Requisitos Previos
+
+- Docker Desktop instalado.
+- Docker Compose v2+.
+
+### Pasos para el Despliegue
+
+1. **Clonar el repositorio**:
+
+   ```bash
+   git clone [url-del-repositorio]
+   cd Serviceflow-pro
+   ```
+
+2. **Levantar los servicios**:
+
+   ```bash
+   docker-compose up -d --build
+   ```
+
+3. **Inicializar la Base de Datos (Solo la primera vez)**:
+   ```bash
+   docker-compose exec backend python init_db.py
+   ```
+
+### Servicios Disponibles
+
+- **Frontend**: [http://localhost:3000](http://localhost:3000)
+- **Backend API**: [http://localhost:8000](http://localhost:8000)
+- **Documentación API**: [http://localhost:8000/docs](http://localhost:8000/docs)
+- **Base de Datos**: PostgreSQL en puerto `5432` (interno a Docker).
+
+---
 
 ---
 
@@ -887,7 +927,7 @@ Trigger: Diario sobre cuentas vencidas
 Cálculo:
 
 - overdue_days = fecha_actual - due_date
-- interest_amount = balance _ (interest_rate/100) _ (overdue_days/30)
+- interest*amount = balance * (interest*rate/100) * (overdue_days/30)
   Output:
 - Intereses agregados al balance
 - Notificación al cliente
