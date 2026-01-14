@@ -20,9 +20,7 @@ import {
   ClipboardCheck,
   DollarSign,
   AlertCircle,
-  ChevronRight,
-  List,
-  Grid3X3
+  ChevronRight
 } from 'lucide-react'
 import { SearchableSelect } from '@/components/ui/SearchableSelect'
 import RepairPartsModal from '@/components/repairs/RepairPartsModal'
@@ -47,7 +45,7 @@ export default function RepairsPage() {
   const [statusFilter, setStatusFilter] = useState<string>('')
   const [isFormOpen, setIsFormOpen] = useState(false)
   const [selectedRepairId, setSelectedRepairId] = useState<number | null>(null)
-  const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid') // ← NUEVO
+  // View is always table (compact) mode
   const [searchQuery, setSearchQuery] = useState('')
   
   const [formData, setFormData] = useState<RepairFormData>({
@@ -186,224 +184,84 @@ export default function RepairsPage() {
               className="w-full pl-12 pr-4 py-3 bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-3xl text-sm font-medium focus:ring-4 focus:ring-blue-500/10 outline-none transition-all shadow-sm"
             />
           </div>
-          {/* Toggle View Buttons */}
-          <div className="flex gap-2">
-            <button
-              onClick={() => setViewMode('grid')}
-              className={cn(
-                "p-2.5 rounded-xl transition-all",
-                viewMode === 'grid' 
-                  ? 'bg-blue-600 text-white shadow-md' 
-                  : 'bg-gray-100 dark:bg-gray-800 text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-700'
-              )}
-              title="Vista Tarjetas"
-            >
-              <Grid3X3 className="h-4 w-4" />
-            </button>
-            <button
-              onClick={() => setViewMode('table')}
-              className={cn(
-                "p-2.5 rounded-xl transition-all",
-                viewMode === 'table' 
-                  ? 'bg-blue-600 text-white shadow-md' 
-                  : 'bg-gray-100 dark:bg-gray-800 text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-700'
-              )}
-              title="Vista Compacta"
-            >
-              <List className="h-4 w-4" />
-            </button>
-          </div>
+
         </div>
       </div>
 
-      {/* Renderizado condicional */}
-      {viewMode === 'grid' ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {isLoading ? (
-            <div className="col-span-full flex flex-col items-center justify-center py-32 gap-6">
-              <div className="relative">
-                <Loader2 className="h-14 w-14 animate-spin text-blue-600" />
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <Wrench className="h-6 w-6 text-blue-400" />
-                </div>
-              </div>
-              <p className="font-black text-gray-400 uppercase tracking-widest text-sm">Preparando taller...</p>
-            </div>
-          ) : filteredRepairs.length > 0 ? (
-            filteredRepairs.map((repair: Repair) => {
-              const statusInfo = STATUS_CONFIG[repair.status as keyof typeof STATUS_CONFIG]
-              const typeInfo = TYPE_CONFIG[repair.repair_type as keyof typeof TYPE_CONFIG] || TYPE_CONFIG.service
-              const StatusIcon = statusInfo?.icon || Clock
-              const TypeIcon = typeInfo.icon
-              
-              return (
-                <motion.div 
-                  key={repair.id} 
-                  layout
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-[35px] p-6 shadow-sm hover:shadow-2xl transition-all group relative overflow-hidden"
-                >
-                  <div className={cn("absolute top-0 left-0 w-full h-1.5 opacity-50", statusInfo?.color)} />
-                  
-                  <div className="flex justify-between items-start mb-6">
-                    <div className="flex items-center gap-4">
-                      <div className={cn("h-14 w-14 rounded-2xl flex items-center justify-center shadow-inner", typeInfo.color)}>
-                        <TypeIcon className="h-7 w-7" />
-                      </div>
-                      <div>
-                        <h3 className="font-black text-gray-900 dark:text-white text-xl">#{repair.id}</h3>
-                        <p className="text-sm font-bold text-gray-400">{repair.device_model}</p>
-                      </div>
-                    </div>
-                    <span className={cn("px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest flex items-center gap-2 shadow-sm", statusInfo?.color)}>
-                      <StatusIcon className="h-3.5 w-3.5" />
-                      {statusInfo?.label}
-                    </span>
-                  </div>
-                  
-                  <div className="bg-gray-50/50 dark:bg-black/20 rounded-3xl p-5 mb-6 border border-gray-100/50 dark:border-white/5">
-                    <div className="flex items-center gap-2 mb-2">
-                      <AlertCircle className="h-3.5 w-3.5 text-blue-500" />
-                      <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Problema Reportado</p>
-                    </div>
-                    <p className="text-sm text-gray-700 dark:text-gray-300 font-semibold line-clamp-2 leading-relaxed italic">
+      {/* Table View */}
+      <div className="overflow-x-auto rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950">
+        <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-800">
+          <thead className="bg-gray-50 dark:bg-gray-900">
+            <tr>
+              <th className="px-4 py-3 text-left text-[10px] font-black text-gray-500 uppercase tracking-widest">ID</th>
+              <th className="px-4 py-3 text-left text-[10px] font-black text-gray-500 uppercase tracking-widest">Cliente</th>
+              <th className="px-4 py-3 text-left text-[10px] font-black text-gray-500 uppercase tracking-widest">Equipo</th>
+              <th className="px-4 py-3 text-left text-[10px] font-black text-gray-500 uppercase tracking-widest">Problema</th>
+              <th className="px-4 py-3 text-left text-[10px] font-black text-gray-500 uppercase tracking-widest">Presupuesto</th>
+              <th className="px-4 py-3 text-left text-[10px] font-black text-gray-500 uppercase tracking-widest">Estado</th>
+              <th className="px-4 py-3 text-left text-[10px] font-black text-gray-500 uppercase tracking-widest">Acciones</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
+            {isLoading ? (
+              <tr>
+                <td colSpan={7} className="px-4 py-8 text-center">
+                  <Loader2 className="h-6 w-6 animate-spin text-blue-600 mx-auto" />
+                </td>
+              </tr>
+            ) : filteredRepairs.length > 0 ? (
+              filteredRepairs.map((repair: Repair) => {
+                const statusInfo = STATUS_CONFIG[repair.status as keyof typeof STATUS_CONFIG];
+                return (
+                  <tr key={repair.id} className="hover:bg-gray-50 dark:hover:bg-gray-900 transition-colors">
+                    <td className="px-4 py-3 font-black text-gray-900 dark:text-white">#{repair.id}</td>
+                    <td className="px-4 py-3 text-sm font-bold text-gray-700 dark:text-gray-300">
+                      {repair.customer_name || 'Particular'}
+                      {repair.customer_dni && (
+                        <span className="block text-[10px] text-gray-400">{repair.customer_dni}</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3 font-bold text-gray-900 dark:text-white">{repair.device_model}</td>
+                    <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400 max-w-[150px] truncate" title={repair.problem_description}>
                       "{repair.problem_description}"
-                    </p>
-                  </div>
-                  
-                  <div className="flex items-center justify-between mb-8 px-1">
-                     <div className="flex items-center gap-3">
-                        <div className="h-10 w-10 rounded-2xl bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-900 flex items-center justify-center text-gray-500 shadow-sm">
-                          <User className="h-5 w-5" />
-                        </div>
-                        <div className="flex flex-col">
-                          <span className="text-xs font-black text-gray-900 dark:text-white truncate max-w-[120px]">
-                             {repair.customer_name || 'Particular'}
-                          </span>
-                          <span className="text-[10px] text-gray-400 font-bold tracking-tighter">
-                             {repair.customer_dni || '--'}
-                          </span>
-                        </div>
-                     </div>
-                     <div className="text-right">
-                      <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest leading-none mb-1">Presupuesto</p>
-                      <p className="text-2xl font-black text-blue-600 leading-tight">
-                        ${Number(repair.estimated_cost_usd || 0).toFixed(2)}
-                      </p>
-                     </div>
-                  </div>
-                  
-                  <div className="flex gap-3">
-                    <div className="relative flex-1">
+                    </td>
+                    <td className="px-4 py-3 font-black text-blue-600">${Number(repair.estimated_cost_usd).toFixed(2)}</td>
+                    <td className="px-4 py-3">
+                      <span className={cn("px-2.5 py-1 rounded-full text-[10px] font-black uppercase", statusInfo?.color)}>
+                        {statusInfo?.label}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 flex gap-2">
                       <select
                         value={repair.status}
                         onChange={(e) => handleStatusChange(repair.id, e.target.value)}
-                        className="w-full pl-4 pr-10 py-3.5 text-xs font-black border-none rounded-2xl bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-4 focus:ring-blue-500/10 cursor-pointer shadow-inner appearance-none transition-all uppercase tracking-widest"
+                        className="text-xs font-black rounded px-2 py-1 bg-gray-100 dark:bg-gray-800 border-none focus:ring-2 focus:ring-blue-500/30"
                       >
                         {Object.entries(STATUS_CONFIG).map(([value, config]) => (
                           <option key={value} value={value}>{config.label}</option>
                         ))}
                       </select>
-                      <ChevronRight className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 rotate-90 pointer-events-none" />
-                    </div>
-                    <button
-                      onClick={() => setSelectedRepairId(repair.id)}
-                      className="h-12 w-12 bg-orange-100 dark:bg-orange-900/20 text-orange-600 rounded-2xl hover:bg-orange-600 hover:text-white transition-all flex items-center justify-center shadow-lg shadow-orange-500/5 group/btn"
-                      title="Repuestos"
-                    >
-                      <Package className="h-6 w-6 group-hover/btn:scale-110 transition-transform" />
-                    </button>
-                  </div>
-                </motion.div>
-              )
-            })
-          ) : (
-            <div className="col-span-full text-center py-32 bg-white dark:bg-gray-900 border-2 border-dashed border-gray-100 dark:border-gray-800 rounded-[50px] shadow-sm">
-               <div className="h-24 w-24 bg-gray-50 dark:bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-6 shadow-inner">
-                  <AlertCircle className="h-12 w-12 text-gray-300" />
-               </div>
-               <h3 className="text-2xl font-black text-gray-900 dark:text-white">Bandeja Vacía</h3>
-               <p className="text-gray-400 mt-2 font-medium">No hay equipos en el taller actualmente.</p>
-            </div>
-          )}
-        </div>
-      ) : (
-        /* VISTA COMPACTA - TABLA */
-        <div className="overflow-x-auto rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950">
-          <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-800">
-            <thead className="bg-gray-50 dark:bg-gray-900">
+                      <button
+                        onClick={() => setSelectedRepairId(repair.id)}
+                        className="p-1.5 text-orange-600 hover:bg-orange-100 dark:hover:bg-orange-900/30 rounded"
+                        title="Repuestos"
+                      >
+                        <Package className="h-4 w-4" />
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })
+            ) : (
               <tr>
-                <th className="px-4 py-3 text-left text-[10px] font-black text-gray-500 uppercase tracking-widest">ID</th>
-                <th className="px-4 py-3 text-left text-[10px] font-black text-gray-500 uppercase tracking-widest">Cliente</th>
-                <th className="px-4 py-3 text-left text-[10px] font-black text-gray-500 uppercase tracking-widest">Equipo</th>
-                <th className="px-4 py-3 text-left text-[10px] font-black text-gray-500 uppercase tracking-widest">Problema</th>
-                <th className="px-4 py-3 text-left text-[10px] font-black text-gray-500 uppercase tracking-widest">Presupuesto</th>
-                <th className="px-4 py-3 text-left text-[10px] font-black text-gray-500 uppercase tracking-widest">Estado</th>
-                <th className="px-4 py-3 text-left text-[10px] font-black text-gray-500 uppercase tracking-widest">Acciones</th>
+                <td colSpan={7} className="px-4 py-12 text-center text-gray-500">
+                  No hay reparaciones que coincidan con los filtros.
+                </td>
               </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
-              {isLoading ? (
-                <tr>
-                  <td colSpan={7} className="px-4 py-8 text-center">
-                    <Loader2 className="h-6 w-6 animate-spin text-blue-600 mx-auto" />
-                  </td>
-                </tr>
-              ) : filteredRepairs.length > 0 ? (
-                filteredRepairs.map((repair: Repair) => {
-                  const statusInfo = STATUS_CONFIG[repair.status as keyof typeof STATUS_CONFIG];
-                  return (
-                    <tr key={repair.id} className="hover:bg-gray-50 dark:hover:bg-gray-900 transition-colors">
-                      <td className="px-4 py-3 font-black text-gray-900 dark:text-white">#{repair.id}</td>
-                      <td className="px-4 py-3 text-sm font-bold text-gray-700 dark:text-gray-300">
-                        {repair.customer_name || 'Particular'}
-                        {repair.customer_dni && (
-                          <span className="block text-[10px] text-gray-400">{repair.customer_dni}</span>
-                        )}
-                      </td>
-                      <td className="px-4 py-3 font-bold text-gray-900 dark:text-white">{repair.device_model}</td>
-                      <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400 max-w-[150px] truncate" title={repair.problem_description}>
-                        "{repair.problem_description}"
-                      </td>
-                      <td className="px-4 py-3 font-black text-blue-600">${Number(repair.estimated_cost_usd).toFixed(2)}</td>
-                      <td className="px-4 py-3">
-                        <span className={cn("px-2.5 py-1 rounded-full text-[10px] font-black uppercase", statusInfo?.color)}>
-                          {statusInfo?.label}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 flex gap-2">
-                        <select
-                          value={repair.status}
-                          onChange={(e) => handleStatusChange(repair.id, e.target.value)}
-                          className="text-xs font-black rounded px-2 py-1 bg-gray-100 dark:bg-gray-800 border-none focus:ring-2 focus:ring-blue-500/30"
-                        >
-                          {Object.entries(STATUS_CONFIG).map(([value, config]) => (
-                            <option key={value} value={value}>{config.label}</option>
-                          ))}
-                        </select>
-                        <button
-                          onClick={() => setSelectedRepairId(repair.id)}
-                          className="p-1.5 text-orange-600 hover:bg-orange-100 dark:hover:bg-orange-900/30 rounded"
-                          title="Repuestos"
-                        >
-                          <Package className="h-4 w-4" />
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })
-              ) : (
-                <tr>
-                  <td colSpan={7} className="px-4 py-12 text-center text-gray-500">
-                    No hay reparaciones que coincidan con los filtros.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      )}
+            )}
+          </tbody>
+        </table>
+      </div>
 
       {/* Entry Drawer */}
       <AnimatePresence>

@@ -9,7 +9,7 @@ import { Search, Package, Plus, AlertCircle } from 'lucide-react'
 export default function ProductCatalog() {
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedCategory, setSelectedCategory] = useState<number | undefined>()
-  const addItem = useCartStore(state => state.addItem)
+  const addProduct = useCartStore(state => state.addProduct)
 
   const { data: products, isLoading } = useQuery({
     queryKey: ['products', searchQuery, selectedCategory],
@@ -27,7 +27,7 @@ export default function ProductCatalog() {
   })
 
   const handleAddToCart = (product: Product) => {
-    addItem({
+    addProduct({
       product_id: product.id,
       name: product.name,
       price_usd: Number(product.price_usd),

@@ -13,18 +13,50 @@ export interface CashSession {
   session_code: string;
   status: 'open' | 'closed';
   opening_amount: number;
-  opening_amount_ves: number; // NEW
+  opening_amount_ves: number;
   expected_amount: number;
-  expected_amount_ves: number; // NEW
+  expected_amount_ves: number;
   actual_amount: number | null;
-  actual_amount_ves: number | null; // NEW
+  actual_amount_ves: number | null;
   shortage: number;
   overage: number;
-  shortage_ves: number; // NEW
-  overage_ves: number; // NEW
+  shortage_ves: number;
+  overage_ves: number;
   opened_at: string;
   closed_at: string | null;
   notes: string | null;
+}
+
+export interface FinanceSummary {
+  total_receivables: number;
+  overdue_amount: number;
+  morosos_count: number;
+  cash_in_session: number;
+  cash_in_session_ves: number;
+  exchange_rate: number;
+  session_active: boolean;
+  session_code: string | null;
+}
+
+export interface Moroso {
+  customer_id: number;
+  customer_name: string;
+  phone: string | null;
+  total_debt: number;
+  days_overdue: number;
+  oldest_due_date: string;
+  accounts: {
+    id: number;
+    balance: number;
+    due_date: string;
+    days_overdue: number;
+  }[];
+}
+
+export interface MorososResponse {
+  morosos: Moroso[];
+  total_morosos: number;
+  total_at_risk: number;
 }
 
 export const financeService = {
@@ -58,6 +90,17 @@ export const financeService = {
       actual_amount_ves,
       notes 
     });
+    return response.data;
+  },
+
+  // --- Dashboard KPIs ---
+  getFinanceSummary: async (): Promise<FinanceSummary> => {
+    const response = await api.get('/finance/summary');
+    return response.data;
+  },
+
+  getMorosos: async (): Promise<MorososResponse> => {
+    const response = await api.get('/finance/morosos');
     return response.data;
   },
 
@@ -101,8 +144,9 @@ export interface AccountReceivableCreate {
 export interface CustomerPaymentCreate {
   amount_usd: number;
   payment_method: string;
-  currency: string; // NEW
+  currency: string;
   reference?: string;
   notes?: string;
 }
+
 

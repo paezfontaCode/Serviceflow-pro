@@ -49,6 +49,12 @@ class RepairUpdate(BaseModel):
     final_cost_usd: Optional[Decimal] = None
     notes: Optional[str] = None
 
+# Repair Payment Schema
+class RepairPaymentCreate(BaseModel):
+    amount: Decimal
+    payment_method: str
+    notes: Optional[str] = None
+
 class RepairRead(RepairBase):
     id: int
     user_id: Optional[int] = None
@@ -66,4 +72,5 @@ class RepairRead(RepairBase):
     
     class Config:
         from_attributes = True
+
 

@@ -415,6 +415,129 @@ def pay_accounts_payable(
     db.refresh(ap)
     return ap
 
+# --- Finance Dashboard Summary Endpoint ---
+
+@router.get("/summary")
+def get_finance_summary(
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_active_user)
+):
+    """Returns KPIs for the finance dashboard"""
+    from decimal import Decimal
+    from sqlalchemy import func
+    from datetime import date, timedelta
+    
+    today = date.today()
+    
+    # Total Receivables
+    total_receivables = db.query(
+        func.sum(AccountReceivable.total_amount - AccountReceivable.paid_amount)
+    ).filter(AccountReceivable.status != "paid").scalar() or Decimal(0)
+    
+    # Overdue Amount
+    overdue_amount = db.query(
+        func.sum(AccountReceivable.total_amount - AccountReceivable.paid_amount)
+    ).filter(
+        AccountReceivable.status != "paid",
+        AccountReceivable.due_date < today
+    ).scalar() or Decimal(0)
+    
+    # Count of morosos (customers with overdue > 30 days)
+    thirty_days_ago = today - timedelta(days=30)
+    morosos_count = db.query(func.count(func.distinct(AccountReceivable.customer_id))).filter(
+        AccountReceivable.status != "paid",
+        AccountReceivable.due_date < thirty_days_ago
+    ).scalar() or 0
+    
+    # Current cash session
+    session = db.query(CashSession).filter(
+        CashSession.user_id == current_user.id,
+        CashSession.status == "open"
+    ).first()
+    
+    cash_in_session = Decimal(session.expected_amount) if session else Decimal(0)
+    cash_in_session_ves = Decimal(session.expected_amount_ves) if session else Decimal(0)
+    
+    # Exchange rate
+    rate = db.query(ExchangeRate).filter(ExchangeRate.is_active == True).first()
+    exchange_rate = rate.rate if rate else Decimal(1)
+    
+    return {
+        "total_receivables": float(total_receivables),
+        "overdue_amount": float(overdue_amount),
+        "morosos_count": morosos_count,
+        "cash_in_session": float(cash_in_session),
+        "cash_in_session_ves": float(cash_in_session_ves),
+        "exchange_rate": float(exchange_rate),
+        "session_active": session is not None,
+        "session_code": session.session_code if session else None
+    }
+
+# --- Morosos Endpoint ---
+
+@router.get("/morosos")
+def get_morosos(
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_active_user)
+):
+    """Returns list of delinquent customers (overdue > 30 days)"""
+    from datetime import date, timedelta
+    from sqlalchemy import func
+    
+    today = date.today()
+    thirty_days_ago = today - timedelta(days=30)
+    
+    # Get accounts overdue > 30 days grouped by customer
+    overdue_accounts = db.query(AccountReceivable).filter(
+        AccountReceivable.status != "paid",
+        AccountReceivable.due_date < thirty_days_ago
+    ).all()
+    
+    # Group by customer
+    customer_debts = {}
+    for ar in overdue_accounts:
+        cid = ar.customer_id
+        if cid not in customer_debts:
+            customer = db.query(Customer).filter(Customer.id == cid).first()
+            customer_debts[cid] = {
+                "customer_id": cid,
+                "customer_name": customer.name if customer else f"Cliente #{cid}",
+                "phone": customer.phone if customer else None,
+                "total_debt": 0,
+                "oldest_due_date": ar.due_date,
+                "accounts": []
+            }
+        
+        balance = float(ar.total_amount - (ar.paid_amount or 0))
+        customer_debts[cid]["total_debt"] += balance
+        customer_debts[cid]["accounts"].append({
+            "id": ar.id,
+            "balance": balance,
+            "due_date": ar.due_date.isoformat(),
+            "days_overdue": (today - ar.due_date).days
+        })
+        
+        if ar.due_date < customer_debts[cid]["oldest_due_date"]:
+            customer_debts[cid]["oldest_due_date"] = ar.due_date
+    
+    # Calculate days overdue for each customer
+    morosos = []
+    for cid, data in customer_debts.items():
+        data["days_overdue"] = (today - data["oldest_due_date"]).days
+        data["oldest_due_date"] = data["oldest_due_date"].isoformat()
+        morosos.append(data)
+    
+    # Sort by days overdue desc
+    morosos.sort(key=lambda x: x["days_overdue"], reverse=True)
+    
+    total_at_risk = sum(m["total_debt"] for m in morosos)
+    
+    return {
+        "morosos": morosos[:10],  # Top 10
+        "total_morosos": len(morosos),
+        "total_at_risk": total_at_risk
+    }
+
 @router.post("/calculate-aging")
 def calculate_aging(
     db: Session = Depends(get_db),
@@ -422,4 +545,5 @@ def calculate_aging(
 ):
     from ...services.report_service import ReportService
     return ReportService.calculate_aging_and_risk(db)
+
 

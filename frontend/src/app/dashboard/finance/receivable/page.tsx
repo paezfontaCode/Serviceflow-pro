@@ -1,11 +1,25 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { financeService, CustomerPaymentCreate } from '@/lib/financeService'
+import { financeService, CustomerPaymentCreate, AccountReceivable } from '@/lib/financeService'
 import { useFinanceStore } from '@/store/useFinanceStore'
-import { DollarSign, Search, Calendar, CheckCircle, Clock, AlertCircle, Plus, X, Loader2 } from 'lucide-react'
+import { 
+  DollarSign, 
+  Search, 
+  CheckCircle, 
+  Clock, 
+  AlertCircle, 
+  X, 
+  Loader2, 
+  Users, 
+  Phone, 
+  ChevronDown,
+  ChevronUp,
+  ArrowLeft
+} from 'lucide-react'
 import { cn } from '@/lib/utils'
+import Link from 'next/link'
 
 const STATUS_CONFIG = {
   pending: { label: 'Pendiente', color: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/20 dark:text-yellow-400', icon: Clock },
@@ -14,8 +28,19 @@ const STATUS_CONFIG = {
   overdue: { label: 'Vencido', color: 'bg-red-100 text-red-700 dark:bg-red-900/20 dark:text-red-400', icon: AlertCircle }
 }
 
+interface GroupedCustomer {
+  customer_id: number
+  customer_name: string
+  total_debt: number
+  paid_amount: number
+  balance: number
+  accounts: AccountReceivable[]
+}
+
 export default function AccountsReceivablePage() {
   const [statusFilter, setStatusFilter] = useState<string>('')
+  const [searchQuery, setSearchQuery] = useState('')
+  const [expandedCustomer, setExpandedCustomer] = useState<number | null>(null)
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false)
   const [selectedAccount, setSelectedAccount] = useState<any>(null)
   
@@ -27,104 +52,228 @@ export default function AccountsReceivablePage() {
     queryFn: () => financeService.getAccountsReceivable({ status: statusFilter || undefined })
   })
 
+  // Group accounts by customer
+  const groupedByCustomer = useMemo(() => {
+    if (!accounts) return []
+    
+    const groups: Record<number, GroupedCustomer> = {}
+    
+    accounts.forEach((account: AccountReceivable) => {
+      const cid = account.customer_id
+      if (!groups[cid]) {
+        groups[cid] = {
+          customer_id: cid,
+          customer_name: account.customer_name || `Cliente #${cid}`,
+          total_debt: 0,
+          paid_amount: 0,
+          balance: 0,
+          accounts: []
+        }
+      }
+      groups[cid].total_debt += Number(account.total_amount)
+      groups[cid].paid_amount += Number(account.paid_amount || 0)
+      groups[cid].balance += Number(account.balance || 0)
+      groups[cid].accounts.push(account)
+    })
+    
+    return Object.values(groups).sort((a, b) => b.balance - a.balance)
+  }, [accounts])
+
+  // Filter by search
+  const filteredGroups = useMemo(() => {
+    if (!searchQuery) return groupedByCustomer
+    const query = searchQuery.toLowerCase()
+    return groupedByCustomer.filter(g => 
+      g.customer_name.toLowerCase().includes(query) ||
+      g.customer_id.toString().includes(query)
+    )
+  }, [groupedByCustomer, searchQuery])
+
+  // Summary stats
+  const totalReceivables = groupedByCustomer.reduce((sum, g) => sum + g.balance, 0)
+  const totalCustomers = groupedByCustomer.length
+
   return (
     <div className="space-y-6">
+      {/* Header */}
       <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Cuentas por Cobrar</h1>
-          <p className="text-gray-600 dark:text-gray-400">Gestiona créditos y abonos de clientes</p>
-        </div>
-      </div>
-
-      {/* Filters */}
-      <div className="flex gap-2">
-        {['', 'pending', 'partial', 'paid', 'overdue'].map((status) => (
-          <button
-            key={status}
-            onClick={() => setStatusFilter(status)}
-            className={cn(
-              "px-4 py-2 rounded-lg text-sm font-medium transition-colors",
-              statusFilter === status
-                ? "bg-blue-600 text-white"
-                : "bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700"
-            )}
+        <div className="flex items-center gap-4">
+          <Link 
+            href="/dashboard/finance"
+            className="h-10 w-10 bg-gray-100 dark:bg-gray-800 rounded-xl flex items-center justify-center hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
           >
-            {status === '' ? 'Todos' : STATUS_CONFIG[status as keyof typeof STATUS_CONFIG]?.label}
-          </button>
-        ))}
+            <ArrowLeft className="h-5 w-5 text-gray-500" />
+          </Link>
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Cuentas por Cobrar</h1>
+            <p className="text-gray-600 dark:text-gray-400">Gestiona créditos y abonos de clientes</p>
+          </div>
+        </div>
+        
+        {/* Summary Stats */}
+        <div className="flex items-center gap-4">
+          <div className="text-right">
+            <p className="text-xs text-gray-500 uppercase font-bold">Total por Cobrar</p>
+            <p className="text-2xl font-black text-red-600">${totalReceivables.toFixed(2)}</p>
+          </div>
+          <div className="h-12 w-px bg-gray-200 dark:bg-gray-700" />
+          <div className="text-right">
+            <p className="text-xs text-gray-500 uppercase font-bold">Clientes</p>
+            <p className="text-2xl font-black text-gray-900 dark:text-white">{totalCustomers}</p>
+          </div>
+        </div>
       </div>
 
-      {/* List */}
-      <div className="bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-200 dark:border-gray-800 overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm text-left">
-            <thead className="bg-gray-50 dark:bg-gray-800 text-gray-700 dark:text-gray-300">
-              <tr>
-                <th className="px-6 py-3 font-medium">ID / Cliente</th>
-                <th className="px-6 py-3 font-medium">Monto Total</th>
-                <th className="px-6 py-3 font-medium">Pagado (USD)</th>
-                <th className="px-6 py-3 font-medium">Saldo (USD)</th>
-                <th className="px-6 py-3 font-medium">Saldo (VES)</th>
-                <th className="px-6 py-3 font-medium">Estado</th>
-                <th className="px-6 py-3 font-medium">Acciones</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-200 dark:divide-gray-800">
-              {isLoading ? (
-                <tr>
-                  <td colSpan={7} className="px-6 py-12 text-center">
-                    <Loader2 className="h-8 w-8 animate-spin mx-auto text-blue-600" />
-                  </td>
-                </tr>
-              ) : accounts?.length === 0 ? (
-                <tr>
-                  <td colSpan={7} className="px-6 py-12 text-center text-gray-500">
-                    No hay cuentas por cobrar registradas
-                  </td>
-                </tr>
-              ) : (
-                accounts?.map((account: any) => {
-                  const StatusIcon = STATUS_CONFIG[account.status as keyof typeof STATUS_CONFIG]?.icon || Clock
-                  return (
-                    <tr key={account.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/50">
-                      <td className="px-6 py-4">
-                        <div className="font-medium text-gray-900 dark:text-white">#{account.id}</div>
-                        <div className="text-xs text-gray-500">Cliente {account.customer_id}</div>
-                      </td>
-                      <td className="px-6 py-4 font-medium">${Number(account.total_amount).toFixed(2)}</td>
-                      <td className="px-6 py-4 text-green-600">${Number(account.paid_amount).toFixed(2)}</td>
-                      <td className="px-6 py-4 font-medium text-red-600">
-                        ${Number(account.balance).toFixed(2)}
-                      </td>
-                      <td className="px-6 py-4 font-bold text-red-600">
-                        Bs. {(Number(account.balance) * exchangeRate).toFixed(2)}
-                      </td>
-                      <td className="px-6 py-4">
-                        <span className={cn("px-2 py-1 rounded-full text-xs font-medium flex items-center w-fit gap-1", STATUS_CONFIG[account.status as keyof typeof STATUS_CONFIG]?.color)}>
-                          <StatusIcon className="h-3 w-3" />
-                          {STATUS_CONFIG[account.status as keyof typeof STATUS_CONFIG]?.label}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4">
-                        {account.status !== 'paid' && (
-                          <button
-                            onClick={() => {
-                              setSelectedAccount(account)
-                              setIsPaymentModalOpen(true)
-                            }}
-                            className="px-3 py-1.5 bg-blue-100 text-blue-700 hover:bg-blue-200 dark:bg-blue-900/30 dark:text-blue-400 dark:hover:bg-blue-900/50 rounded-lg text-xs font-medium transition-colors"
-                          >
-                            Registrar Pago
-                          </button>
-                        )}
-                      </td>
-                    </tr>
-                  )
-                })
-              )}
-            </tbody>
-          </table>
+      {/* Filters Bar */}
+      <div className="flex flex-wrap gap-4 items-center">
+        {/* Search */}
+        <div className="relative flex-1 min-w-[250px]">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+          <input 
+            placeholder="Buscar por cliente..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full pl-11 pr-4 py-2.5 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 outline-none"
+          />
         </div>
+        
+        {/* Status Filters */}
+        <div className="flex gap-2">
+          {['', 'pending', 'partial', 'paid', 'overdue'].map((status) => (
+            <button
+              key={status}
+              onClick={() => setStatusFilter(status)}
+              className={cn(
+                "px-4 py-2 rounded-xl text-sm font-medium transition-all",
+                statusFilter === status
+                  ? "bg-blue-600 text-white shadow-lg shadow-blue-500/25"
+                  : "bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700"
+              )}
+            >
+              {status === '' ? 'Todos' : STATUS_CONFIG[status as keyof typeof STATUS_CONFIG]?.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Customer Cards */}
+      <div className="space-y-4">
+        {isLoading ? (
+          <div className="flex items-center justify-center py-16">
+            <Loader2 className="h-10 w-10 animate-spin text-blue-600" />
+          </div>
+        ) : filteredGroups.length === 0 ? (
+          <div className="text-center py-16 bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800">
+            <Users className="h-16 w-16 mx-auto mb-4 text-gray-300" />
+            <p className="text-xl font-bold text-gray-900 dark:text-white">Sin resultados</p>
+            <p className="text-gray-500">No hay cuentas por cobrar que coincidan</p>
+          </div>
+        ) : (
+          filteredGroups.map((customer) => {
+            const isExpanded = expandedCustomer === customer.customer_id
+            const hasOverdue = customer.accounts.some(a => a.status === 'overdue')
+            
+            return (
+              <div 
+                key={customer.customer_id}
+                className={cn(
+                  "bg-white dark:bg-gray-900 rounded-2xl border overflow-hidden transition-all",
+                  hasOverdue 
+                    ? "border-red-200 dark:border-red-800 shadow-lg shadow-red-500/5" 
+                    : "border-gray-200 dark:border-gray-800"
+                )}
+              >
+                {/* Customer Header */}
+                <button
+                  onClick={() => setExpandedCustomer(isExpanded ? null : customer.customer_id)}
+                  className="w-full flex items-center justify-between p-5 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
+                >
+                  <div className="flex items-center gap-4">
+                    <div className={cn(
+                      "h-12 w-12 rounded-xl flex items-center justify-center",
+                      hasOverdue ? "bg-red-100 dark:bg-red-900/30" : "bg-blue-100 dark:bg-blue-900/30"
+                    )}>
+                      <Users className={cn("h-6 w-6", hasOverdue ? "text-red-600" : "text-blue-600")} />
+                    </div>
+                    <div className="text-left">
+                      <p className="font-bold text-gray-900 dark:text-white text-lg">{customer.customer_name}</p>
+                      <p className="text-sm text-gray-500">{customer.accounts.length} cuenta(s) activa(s)</p>
+                    </div>
+                    {hasOverdue && (
+                      <span className="px-3 py-1 bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 rounded-full text-xs font-bold uppercase">
+                        Moroso
+                      </span>
+                    )}
+                  </div>
+                  
+                  <div className="flex items-center gap-8">
+                    <div className="text-right">
+                      <p className="text-xs text-gray-500 uppercase font-bold">Saldo</p>
+                      <p className="text-xl font-black text-red-600">${customer.balance.toFixed(2)}</p>
+                      <p className="text-xs text-gray-500">Bs. {(customer.balance * exchangeRate).toFixed(2)}</p>
+                    </div>
+                    {isExpanded ? <ChevronUp className="h-5 w-5 text-gray-400" /> : <ChevronDown className="h-5 w-5 text-gray-400" />}
+                  </div>
+                </button>
+                
+                {/* Expanded Content */}
+                {isExpanded && (
+                  <div className="border-t border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/30 p-4">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="text-gray-500 text-xs uppercase">
+                          <th className="text-left py-2 px-3">ID</th>
+                          <th className="text-left py-2 px-3">Monto</th>
+                          <th className="text-left py-2 px-3">Pagado</th>
+                          <th className="text-left py-2 px-3">Saldo</th>
+                          <th className="text-left py-2 px-3">Vencimiento</th>
+                          <th className="text-left py-2 px-3">Estado</th>
+                          <th className="text-right py-2 px-3">Acción</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
+                        {customer.accounts.map((account) => {
+                          const StatusIcon = STATUS_CONFIG[account.status as keyof typeof STATUS_CONFIG]?.icon || Clock
+                          return (
+                            <tr key={account.id} className="hover:bg-white dark:hover:bg-gray-800 transition-colors">
+                              <td className="py-3 px-3 font-medium">#{account.id}</td>
+                              <td className="py-3 px-3">${Number(account.total_amount).toFixed(2)}</td>
+                              <td className="py-3 px-3 text-green-600">${Number(account.paid_amount || 0).toFixed(2)}</td>
+                              <td className="py-3 px-3 font-bold text-red-600">${Number(account.balance).toFixed(2)}</td>
+                              <td className="py-3 px-3 text-gray-500">{new Date(account.due_date).toLocaleDateString()}</td>
+                              <td className="py-3 px-3">
+                                <span className={cn(
+                                  "px-2 py-1 rounded-full text-xs font-medium flex items-center w-fit gap-1",
+                                  STATUS_CONFIG[account.status as keyof typeof STATUS_CONFIG]?.color
+                                )}>
+                                  <StatusIcon className="h-3 w-3" />
+                                  {STATUS_CONFIG[account.status as keyof typeof STATUS_CONFIG]?.label}
+                                </span>
+                              </td>
+                              <td className="py-3 px-3 text-right">
+                                {account.status !== 'paid' && (
+                                  <button
+                                    onClick={() => {
+                                      setSelectedAccount(account)
+                                      setIsPaymentModalOpen(true)
+                                    }}
+                                    className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold transition-colors"
+                                  >
+                                    Registrar Pago
+                                  </button>
+                                )}
+                              </td>
+                            </tr>
+                          )
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            )
+          })
+        )}
       </div>
 
       {/* Payment Modal */}
@@ -145,6 +294,7 @@ export default function AccountsReceivablePage() {
 function PaymentModal({ account, isOpen, onClose }: { account: any, isOpen: boolean, onClose: () => void }) {
   const [amount, setAmount] = useState(account.balance)
   const [method, setMethod] = useState('cash')
+  const [currency, setCurrency] = useState('USD')
   const [notes, setNotes] = useState('')
   const exchangeRate = useFinanceStore(state => state.exchangeRate)
   
@@ -154,6 +304,8 @@ function PaymentModal({ account, isOpen, onClose }: { account: any, isOpen: bool
     mutationFn: (data: CustomerPaymentCreate) => financeService.registerPayment(account.id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['accounts-receivable'] })
+      queryClient.invalidateQueries({ queryKey: ['finance-summary'] })
+      queryClient.invalidateQueries({ queryKey: ['morosos'] })
       onClose()
     },
     onError: (error: any) => {
@@ -166,6 +318,7 @@ function PaymentModal({ account, isOpen, onClose }: { account: any, isOpen: bool
     mutation.mutate({
       amount_usd: Number(amount),
       payment_method: method,
+      currency: currency,
       notes: notes
     })
   }
@@ -173,14 +326,14 @@ function PaymentModal({ account, isOpen, onClose }: { account: any, isOpen: bool
   if (!isOpen) return null
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
       <div className="bg-white dark:bg-gray-900 rounded-2xl max-w-md w-full shadow-2xl p-6">
         <div className="flex justify-between items-center mb-6">
           <h3 className="text-xl font-bold text-gray-900 dark:text-white">Registrar Abono</h3>
-          <button onClick={onClose}><X className="h-6 w-6 text-gray-400" /></button>
+          <button onClick={onClose}><X className="h-6 w-6 text-gray-400 hover:text-gray-600" /></button>
         </div>
 
-        <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-xl mb-6 space-y-2">
+        <div className="bg-gradient-to-r from-red-50 to-orange-50 dark:from-red-900/20 dark:to-orange-900/20 p-4 rounded-xl mb-6 space-y-2">
           <div className="flex justify-between text-sm">
             <span className="text-gray-500">Deuda Total:</span>
             <span className="font-medium dark:text-white">${Number(account.total_amount).toFixed(2)}</span>
@@ -189,7 +342,7 @@ function PaymentModal({ account, isOpen, onClose }: { account: any, isOpen: bool
             <span className="text-gray-500">Pagado:</span>
             <span className="font-medium text-green-600">${Number(account.paid_amount).toFixed(2)}</span>
           </div>
-          <div className="flex justify-between text-base font-bold border-t border-gray-200 dark:border-gray-700 pt-2">
+          <div className="flex justify-between text-base font-bold border-t border-red-200 dark:border-red-800 pt-2">
             <span className="text-gray-900 dark:text-white">Saldo Pendiente:</span>
             <div className="text-right">
               <div className="text-red-600 text-xl">${Number(account.balance).toFixed(2)}</div>
@@ -210,23 +363,36 @@ function PaymentModal({ account, isOpen, onClose }: { account: any, isOpen: bool
                 required
                 value={amount}
                 onChange={(e) => setAmount(Number(e.target.value))}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500"
+                className="w-full pl-10 pr-4 py-2.5 border border-gray-300 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500"
               />
             </div>
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Método de Pago</label>
-            <select
-              value={method}
-              onChange={(e) => setMethod(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
-            >
-              <option value="cash">Efectivo</option>
-              <option value="card">Tarjeta</option>
-              <option value="transfer">Transferencia</option>
-              <option value="mobile_payment">Pago Móvil</option>
-            </select>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Método</label>
+              <select
+                value={method}
+                onChange={(e) => setMethod(e.target.value)}
+                className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+              >
+                <option value="cash">Efectivo</option>
+                <option value="card">Tarjeta</option>
+                <option value="transfer">Transferencia</option>
+                <option value="mobile_payment">Pago Móvil</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Moneda</label>
+              <select
+                value={currency}
+                onChange={(e) => setCurrency(e.target.value)}
+                className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+              >
+                <option value="USD">USD</option>
+                <option value="VES">VES</option>
+              </select>
+            </div>
           </div>
 
           <div>
@@ -234,15 +400,16 @@ function PaymentModal({ account, isOpen, onClose }: { account: any, isOpen: bool
             <textarea
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white resize-none"
+              className="w-full px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-800 text-gray-900 dark:text-white resize-none"
               rows={2}
+              placeholder="Referencia, observaciones..."
             />
           </div>
 
           <button
             type="submit"
             disabled={mutation.isPending}
-            className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold flex items-center justify-center gap-2 disabled:opacity-50"
+            className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold flex items-center justify-center gap-2 disabled:opacity-50 transition-colors"
           >
             {mutation.isPending ? <Loader2 className="h-5 w-5 animate-spin" /> : <CheckCircle className="h-5 w-5" />}
             Confirmar Pago

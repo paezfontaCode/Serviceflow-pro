@@ -1,10 +1,12 @@
 from typing import List
+from decimal import Decimal
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from ...core.database import get_db
 from ...models.repair import Repair, RepairLog, RepairItem
 from ...models.inventory import Product, Inventory
-from ...schemas.repair import RepairCreate, RepairRead, RepairUpdate, RepairItemCreate, RepairItemRead
+from ...models.finance import CashSession
+from ...schemas.repair import RepairCreate, RepairRead, RepairUpdate, RepairItemCreate, RepairItemRead, RepairPaymentCreate
 from ..deps import get_current_active_user
 
 router = APIRouter(tags=["repairs"])
@@ -175,4 +177,53 @@ def get_repair_items(
             subtotal_usd=item.unit_cost_usd * item.quantity if item.unit_cost_usd else None
         ))
     return result
+
+# --- Repair Payments Endpoint ---
+
+@router.post("/{repair_id}/payments", response_model=RepairRead)
+def record_repair_payment(
+    repair_id: int,
+    payment_in: RepairPaymentCreate,
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_active_user)
+):
+    """Record a payment for a repair (full or partial)"""
+    # Verify repair exists
+    repair = db.query(Repair).filter(Repair.id == repair_id).first()
+    if not repair:
+        raise HTTPException(status_code=404, detail="Reparación no encontrada")
+    
+    # Validate amount
+    amount = Decimal(str(payment_in.amount))
+    if amount <= 0:
+        raise HTTPException(status_code=400, detail="El monto debe ser mayor a cero")
+    
+    # Update paid amount
+    current_paid = Decimal(str(repair.paid_amount_usd or 0))
+    repair.paid_amount_usd = current_paid + amount
+    
+    # Check if an open CashSession exists and record income
+    open_session = db.query(CashSession).filter(
+        CashSession.status == "open"
+    ).first()
+    
+    if open_session:
+        # Add to expected amount in USD
+        open_session.expected_amount = Decimal(str(open_session.expected_amount or 0)) + amount
+    
+    # Log the payment
+    log = RepairLog(
+        repair_id=repair.id,
+        user_id=current_user.id,
+        status_from=repair.status,
+        status_to=repair.status,
+        notes=f"Pago registrado: ${amount} ({payment_in.payment_method}). {payment_in.notes or ''}"
+    )
+    db.add(log)
+    
+    db.commit()
+    db.refresh(repair)
+    
+    return repair
+
 

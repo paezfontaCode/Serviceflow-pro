@@ -46,6 +46,12 @@ export interface RepairItemCreate {
   quantity: number
 }
 
+export interface RepairPaymentData {
+  amount: number
+  payment_method: string
+  notes?: string
+}
+
 const repairService = {
   async getRepairs(status?: string): Promise<Repair[]> {
     const response = await api.get('/repairs/', { params: { status } })
@@ -80,8 +86,15 @@ const repairService = {
 
   async removeRepairItem(repairId: number, itemId: number): Promise<void> {
     await api.delete(`/repairs/${repairId}/items/${itemId}`)
+  },
+
+  // --- Repair Payments ---
+  async recordPayment(repairId: number, data: RepairPaymentData): Promise<Repair> {
+    const response = await api.post(`/repairs/${repairId}/payments`, data)
+    return response.data
   }
 }
 
 export default repairService
+
 
