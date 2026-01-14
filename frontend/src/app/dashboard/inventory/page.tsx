@@ -7,6 +7,7 @@ import inventoryService, { ProductFormData } from '@/lib/inventoryService'
 import { Plus, Search, Package, Edit, Trash2, TrendingUp, TrendingDown, Loader2, X, Download, Upload, History } from 'lucide-react'
 import ImportModal from '@/components/inventory/ImportModal'
 import { InventoryNav } from '@/components/inventory/InventoryNav'
+import { cn } from '@/lib/utils'
 
 export default function InventoryPage() {
   const [searchQuery, setSearchQuery] = useState('')
@@ -34,6 +35,7 @@ export default function InventoryPage() {
     })
   })
 
+  // ... queries and mutations remain the same ...
   const { data: categories } = useQuery({
     queryKey: ['categories'],
     queryFn: () => inventoryService.getCategories()
@@ -114,9 +116,9 @@ export default function InventoryPage() {
   }
 
   const getStockColor = (quantity: number) => {
-    if (quantity === 0) return 'text-red-600'
-    if (quantity < 10) return 'text-yellow-600'
-    return 'text-green-600'
+    if (quantity === 0) return 'text-red-400'
+    if (quantity < 10) return 'text-yellow-400'
+    return 'text-emerald-400'
   }
 
   const handleExport = async () => {
@@ -128,27 +130,32 @@ export default function InventoryPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <InventoryNav />
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Inventario</h1>
-          <p className="text-gray-600 dark:text-gray-400">Administra tus productos y niveles de stock.</p>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+            <div className="h-12 w-12 bg-white/5 border border-white/10 rounded-2xl flex items-center justify-center shadow-lg shadow-blue-500/10 backdrop-blur-md">
+               <Package className="h-6 w-6 text-blue-400" />
+            </div>
+            <div>
+               <h1 className="text-2xl font-bold text-white tracking-tight">Inventario</h1>
+               <p className="text-gray-400 text-sm">Administra tus productos y niveles de stock.</p>
+            </div>
         </div>
         <div className="flex gap-3">
           <button
             onClick={handleExport}
-            className="inline-flex items-center gap-x-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-4 py-2 text-sm font-semibold text-gray-700 dark:text-gray-300 shadow-sm hover:bg-gray-50"
+            className="inline-flex items-center gap-x-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm font-semibold text-gray-300 shadow-sm hover:bg-white/10 transition-colors"
           >
-            <Download className="h-5 w-5" />
+            <Download className="h-4 w-4" />
             Exportar
           </button>
           <button
             onClick={() => setIsImportOpen(true)}
-            className="inline-flex items-center gap-x-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-4 py-2 text-sm font-semibold text-gray-700 dark:text-gray-300 shadow-sm hover:bg-gray-50"
+            className="inline-flex items-center gap-x-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm font-semibold text-gray-300 shadow-sm hover:bg-white/10 transition-colors"
           >
-            <Upload className="h-5 w-5" />
+            <Upload className="h-4 w-4" />
             Importar
           </button>
           <button
@@ -156,7 +163,7 @@ export default function InventoryPage() {
               resetForm()
               setIsFormOpen(true)
             }}
-            className="inline-flex items-center gap-x-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-500"
+            className="inline-flex items-center gap-x-2 rounded-xl bg-gradient-to-r from-blue-600 to-cyan-500 px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-blue-500/20 hover:from-blue-500 hover:to-cyan-400 transition-all hover:scale-105 active:scale-95"
           >
             <Plus className="h-5 w-5" />
             Nuevo Producto
@@ -165,230 +172,261 @@ export default function InventoryPage() {
       </div>
 
       {/* Search and Filters */}
-      <div className="flex items-center gap-x-4">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+      <div className="flex flex-col sm:flex-row items-center gap-4">
+        <div className="relative flex-1 w-full">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
           <input
             type="text"
             placeholder="Buscar por nombre, SKU o modelo..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 focus:ring-2 focus:ring-blue-500 outline-none"
+            className="w-full pl-12 pr-4 py-3 rounded-xl border border-white/10 bg-[#0a0a0f]/60 backdrop-blur-md text-white placeholder-gray-500 focus:ring-2 focus:ring-blue-500/50 outline-none transition-all shadow-sm"
           />
         </div>
-        <select
-          value={selectedCategory || ''}
-          onChange={(e) => setSelectedCategory(e.target.value ? Number(e.target.value) : undefined)}
-          className="px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500"
-        >
-          <option value="">Todas las categorías</option>
-          {categories?.map((cat) => (
-            <option key={cat.id} value={cat.id}>{cat.name}</option>
-          ))}
-        </select>
+        <div className="relative w-full sm:w-64">
+           <select
+             value={selectedCategory || ''}
+             onChange={(e) => setSelectedCategory(e.target.value ? Number(e.target.value) : undefined)}
+             className="w-full appearance-none px-4 py-3 border border-white/10 rounded-xl bg-[#0a0a0f]/60 backdrop-blur-md text-white focus:ring-2 focus:ring-blue-500/50 outline-none cursor-pointer"
+           >
+             <option value="" className="bg-[#0a0a0f]">Todas las categorías</option>
+             {categories?.map((cat) => (
+               <option key={cat.id} value={cat.id} className="bg-[#0a0a0f]">{cat.name}</option>
+             ))}
+           </select>
+           <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none">
+              <svg className="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" /></svg>
+           </div>
+        </div>
       </div>
 
       {/* Products Table */}
-      <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 overflow-hidden">
-        <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-800">
-          <thead className="bg-gray-50 dark:bg-gray-900">
-            <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Producto</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Categoría</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Precio (USD)</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Stock</th>
-              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Acciones</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-200 dark:divide-gray-800">
-            {isLoading ? (
+      <div className="bg-[#0a0a0f]/40 backdrop-blur-xl rounded-3xl border border-white/5 overflow-hidden shadow-2xl">
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-white/5">
+            <thead className="bg-white/5">
               <tr>
-                <td colSpan={5} className="px-6 py-12 text-center">
-                  <Loader2 className="h-8 w-8 animate-spin mx-auto text-blue-600" />
-                </td>
+                <th className="px-6 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-widest">Producto</th>
+                <th className="px-6 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-widest">Categoría</th>
+                <th className="px-6 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-widest">Precio (USD)</th>
+                <th className="px-6 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-widest">Stock</th>
+                <th className="px-6 py-4 text-right text-xs font-bold text-gray-400 uppercase tracking-widest">Acciones</th>
               </tr>
-            ) : products && products.length > 0 ? (
-              products.map((product: any) => (
-                <tr key={product.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center">
-                      <div className="h-10 w-10 flex-shrink-0 rounded-lg bg-gray-100 dark:bg-gray-800 flex items-center justify-center">
-                        <Package className="h-5 w-5 text-gray-500" />
-                      </div>
-                      <div className="ml-4">
-                        <div className="text-sm font-medium text-gray-900 dark:text-white">{product.name}</div>
-                        {product.sku && (
-                          <div className="text-xs text-gray-500 tracking-wider font-mono">SKU: {product.sku}</div>
-                        )}
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {product.category?.name || 'General'}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className="text-sm font-bold text-gray-900 dark:text-white">${Number(product.price_usd).toFixed(2)}</span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`text-sm font-medium ${getStockColor(product.inventory_quantity || 0)}`}>
-                      {product.inventory_quantity || 0}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                    <div className="flex items-center justify-end gap-2">
-                       <Link
-                        href={`/dashboard/inventory/kardex/${product.id}`}
-                        className="text-blue-600 hover:text-blue-900 p-1"
-                        title="Ver Historial (Kardex)"
-                      >
-                        <History className="h-4 w-4" />
-                      </Link>
-                      <button
-                        onClick={() => {
-                          setSelectedProductForAdjust(product)
-                          setIsAdjustOpen(true)
-                        }}
-                        className="text-emerald-600 hover:text-emerald-900 p-1"
-                        title="Ajustar Stock"
-                      >
-                        <TrendingUp className="h-4 w-4" />
-                      </button>
-                      <button
-                        onClick={() => handleEdit(product)}
-                        className="text-amber-600 hover:text-amber-900 p-1"
-                      >
-                        <Edit className="h-4 w-4" />
-                      </button>
-                      <button
-                        onClick={() => handleDelete(product.id)}
-                        className="text-red-600 hover:text-red-900 p-1"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
-                    </div>
+            </thead>
+            <tbody className="divide-y divide-white/5 text-gray-300">
+              {isLoading ? (
+                <tr>
+                  <td colSpan={5} className="px-6 py-20 text-center">
+                    <Loader2 className="h-10 w-10 animate-spin mx-auto text-blue-500" />
                   </td>
                 </tr>
-              ))
-            ) : (
-              <tr>
-                <td colSpan={5} className="px-6 py-12 text-center text-gray-500">
-                  No hay productos en el inventario.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
+              ) : products && products.length > 0 ? (
+                products.map((product: any) => (
+                  <tr key={product.id} className="hover:bg-white/[0.02] transition-colors group">
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex items-center">
+                        <div className="h-10 w-10 flex-shrink-0 rounded-xl bg-gradient-to-br from-gray-800 to-gray-900 border border-white/5 flex items-center justify-center shadow-inner">
+                          <Package className="h-5 w-5 text-gray-400 group-hover:text-blue-400 transition-colors" />
+                        </div>
+                        <div className="ml-4">
+                          <div className="text-sm font-medium text-white group-hover:text-blue-200 transition-colors">{product.name}</div>
+                          {product.sku && (
+                            <div className="text-xs text-gray-500 tracking-wider font-mono mt-0.5">SKU: {product.sku}</div>
+                          )}
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-400">
+                      <span className="px-2 py-1 rounded-lg bg-white/5 border border-white/5 text-xs">
+                        {product.category?.name || 'General'}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className="text-sm font-bold text-white bg-white/5 px-2 py-1 rounded-lg border border-white/5">${Number(product.price_usd).toFixed(2)}</span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className={cn("text-sm font-bold px-2 py-1 rounded-lg border bg-opacity-10", 
+                        product.inventory_quantity === 0 ? "bg-red-500 border-red-500/20 text-red-400" :
+                        product.inventory_quantity < 10 ? "bg-yellow-500 border-yellow-500/20 text-yellow-400" :
+                        "bg-emerald-500 border-emerald-500/20 text-emerald-400"
+                      )}>
+                        {product.inventory_quantity || 0}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                      <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                         <Link
+                          href={`/dashboard/inventory/kardex/${product.id}`}
+                          className="text-gray-400 hover:text-white hover:bg-white/10 p-2 rounded-lg transition-colors"
+                          title="Ver Historial (Kardex)"
+                        >
+                          <History className="h-4 w-4" />
+                        </Link>
+                        <button
+                          onClick={() => {
+                            setSelectedProductForAdjust(product)
+                            setIsAdjustOpen(true)
+                          }}
+                          className="text-gray-400 hover:text-emerald-400 hover:bg-emerald-500/10 p-2 rounded-lg transition-colors"
+                          title="Ajustar Stock"
+                        >
+                          <TrendingUp className="h-4 w-4" />
+                        </button>
+                        <button
+                          onClick={() => handleEdit(product)}
+                          className="text-gray-400 hover:text-blue-400 hover:bg-blue-500/10 p-2 rounded-lg transition-colors"
+                        >
+                          <Edit className="h-4 w-4" />
+                        </button>
+                        <button
+                          onClick={() => handleDelete(product.id)}
+                          className="text-gray-400 hover:text-red-400 hover:bg-red-500/10 p-2 rounded-lg transition-colors"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan={5} className="px-6 py-20 text-center text-gray-500">
+                     <div className="flex flex-col items-center justify-center gap-2">
+                        <Package className="h-12 w-12 opacity-20" />
+                        <p>No hay productos en el inventario.</p>
+                     </div>
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       {/* Product Form Modal */}
       {isFormOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-gray-900 rounded-2xl max-w-2xl w-full shadow-2xl">
-            <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-800">
-              <h2 className="text-xl font-bold text-gray-900 dark:text-white">
-                {editingProduct ? 'Editar Producto' : 'Nuevo Producto'}
-              </h2>
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
+          <div className="bg-[#0a0a0f] border border-white/10 rounded-3xl max-w-2xl w-full shadow-2xl relative overflow-hidden animate-in zoom-in-95 duration-200">
+            {/* Modal Glow */}
+            <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-blue-500 to-cyan-500" />
+            
+            <div className="flex items-center justify-between p-6 border-b border-white/5 bg-white/[0.02]">
+              <div>
+                 <h2 className="text-xl font-bold text-white">
+                   {editingProduct ? 'Editar Producto' : 'Nuevo Producto'}
+                 </h2>
+                 <p className="text-xs text-gray-400 mt-1">Ingresa los detalles del producto</p>
+              </div>
               <button
                 onClick={() => {
                   setIsFormOpen(false)
                   resetForm()
                 }}
-                className="text-gray-400 hover:text-gray-600"
+                className="p-2 rounded-xl text-gray-400 hover:text-white hover:bg-white/10 transition-colors"
               >
-                <X className="h-6 w-6" />
+                <X className="h-5 w-5" />
               </button>
             </div>
-            <form onSubmit={handleSubmit} className="p-6 space-y-4">
-              <div className="grid grid-cols-2 gap-4">
+            
+            <form onSubmit={handleSubmit} className="p-8 space-y-6">
+              <div className="grid grid-cols-2 gap-6">
                 <div className="col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Nombre *
+                  <label className="block text-xs font-medium text-gray-400 ml-1 mb-1.5">
+                    Nombre del Producto *
                   </label>
                   <input
                     type="text"
                     required
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-4 py-3 border border-white/10 rounded-xl bg-white/5 text-white focus:ring-2 focus:ring-blue-500/50 outline-none transition-all placeholder:text-gray-600"
+                    placeholder="Ej: Pantalla iPhone 13 Pro Max"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  <label className="block text-xs font-medium text-gray-400 ml-1 mb-1.5">
                     SKU
                   </label>
                   <input
                     type="text"
                     value={formData.sku || ''}
                     onChange={(e) => setFormData({ ...formData, sku: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-4 py-3 border border-white/10 rounded-xl bg-white/5 text-white focus:ring-2 focus:ring-blue-500/50 outline-none transition-all placeholder:text-gray-600"
+                    placeholder="Generado autom."
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  <label className="block text-xs font-medium text-gray-400 ml-1 mb-1.5">
                     Categoría
                   </label>
                   <select
                     value={formData.category_id || ''}
                     onChange={(e) => setFormData({ ...formData, category_id: e.target.value ? Number(e.target.value) : undefined })}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-4 py-3 border border-white/10 rounded-xl bg-white/5 text-white focus:ring-2 focus:ring-blue-500/50 outline-none transition-all cursor-pointer appearance-none"
                   >
-                    <option value="">Seleccionar...</option>
+                    <option value="" className="bg-[#0a0a0f]">Seleccionar...</option>
                     {categories?.map((cat) => (
-                      <option key={cat.id} value={cat.id}>{cat.name}</option>
+                      <option key={cat.id} value={cat.id} className="bg-[#0a0a0f]">{cat.name}</option>
                     ))}
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Precio (USD) *
+                  <label className="block text-xs font-medium text-gray-400 ml-1 mb-1.5">
+                    Precio Venta (USD) *
                   </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    required
-                    value={formData.price_usd}
-                    onChange={(e) => setFormData({ ...formData, price_usd: Number(e.target.value) })}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500"
-                  />
+                  <div className="relative">
+                     <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500">$</span>
+                     <input
+                        type="number"
+                        step="0.01"
+                        required
+                        value={formData.price_usd}
+                        onChange={(e) => setFormData({ ...formData, price_usd: Number(e.target.value) })}
+                        className="w-full pl-8 pr-4 py-3 border border-white/10 rounded-xl bg-white/5 text-white focus:ring-2 focus:ring-blue-500/50 outline-none transition-all placeholder:text-gray-600"
+                      />
+                  </div>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Costo (USD) *
+                  <label className="block text-xs font-medium text-gray-400 ml-1 mb-1.5">
+                     Costo (USD) *
                   </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    required
-                    value={formData.cost_usd}
-                    onChange={(e) => setFormData({ ...formData, cost_usd: Number(e.target.value) })}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500"
-                  />
+                  <div className="relative">
+                     <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500">$</span>
+                     <input
+                        type="number"
+                        step="0.01"
+                        required
+                        value={formData.cost_usd}
+                        onChange={(e) => setFormData({ ...formData, cost_usd: Number(e.target.value) })}
+                        className="w-full pl-8 pr-4 py-3 border border-white/10 rounded-xl bg-white/5 text-white focus:ring-2 focus:ring-blue-500/50 outline-none transition-all placeholder:text-gray-600"
+                      />
+                  </div>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  <label className="block text-xs font-medium text-gray-400 ml-1 mb-1.5">
                     Marca
                   </label>
                   <input
                     type="text"
                     value={formData.brand || ''}
                     onChange={(e) => setFormData({ ...formData, brand: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-4 py-3 border border-white/10 rounded-xl bg-white/5 text-white focus:ring-2 focus:ring-blue-500/50 outline-none transition-all placeholder:text-gray-600"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  <label className="block text-xs font-medium text-gray-400 ml-1 mb-1.5">
                     Modelo
                   </label>
                   <input
                     type="text"
                     value={formData.model || ''}
                     onChange={(e) => setFormData({ ...formData, model: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-4 py-3 border border-white/10 rounded-xl bg-white/5 text-white focus:ring-2 focus:ring-blue-500/50 outline-none transition-all placeholder:text-gray-600"
                   />
                 </div>
                 {!editingProduct && (
-                  <div className="col-span-2">
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  <div className="col-span-2 p-4 rounded-xl bg-blue-500/5 border border-blue-500/10">
+                    <label className="block text-xs font-bold text-blue-400 ml-1 mb-1.5">
                       Stock Inicial
                     </label>
                     <input
@@ -396,49 +434,50 @@ export default function InventoryPage() {
                       min="0"
                       value={formData.initial_stock || 0}
                       onChange={(e) => setFormData({ ...formData, initial_stock: Number(e.target.value) })}
-                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-4 py-3 border border-blue-500/20 rounded-xl bg-blue-500/5 text-white focus:ring-2 focus:ring-blue-500/50 outline-none transition-all text-center font-bold text-lg"
                       placeholder="0"
                     />
-                    <p className="text-xs text-gray-500 mt-1">
-                      Este será el inventario disponible al momento de crear el producto.
+                    <p className="text-[10px] text-blue-400/60 mt-2 text-center">
+                      Inventario disponible al crear el producto.
                     </p>
                   </div>
                 )}
                 <div className="col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  <label className="block text-xs font-medium text-gray-400 ml-1 mb-1.5">
                     Descripción
                   </label>
                   <textarea
                     rows={3}
                     value={formData.description || ''}
                     onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 resize-none"
+                    className="w-full px-4 py-3 border border-white/10 rounded-xl bg-white/5 text-white focus:ring-2 focus:ring-blue-500/50 outline-none transition-all placeholder:text-gray-600 resize-none"
+                    placeholder="Detalles adicionales..."
                   />
                 </div>
               </div>
-              <div className="flex gap-3 pt-4">
+              <div className="flex gap-3 pt-2">
                 <button
                   type="button"
                   onClick={() => {
                     setIsFormOpen(false)
                     resetForm()
                   }}
-                  className="flex-1 px-4 py-3 border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 rounded-lg font-medium hover:bg-gray-50 dark:hover:bg-gray-800"
+                  className="flex-1 px-4 py-3.5 border border-white/10 text-gray-300 rounded-xl font-medium hover:bg-white/5 transition-colors"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
                   disabled={createMutation.isPending || updateMutation.isPending}
-                  className="flex-1 px-4 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold disabled:opacity-50 flex items-center justify-center gap-2"
+                  className="flex-1 px-4 py-3.5 bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 text-white rounded-xl font-bold shadow-lg shadow-blue-500/20 disabled:opacity-50 flex items-center justify-center gap-2 transition-all hover:scale-[1.02] active:scale-[0.98]"
                 >
                   {(createMutation.isPending || updateMutation.isPending) ? (
                     <>
                       <Loader2 className="h-5 w-5 animate-spin" />
-                      Guardando...
+                      Procesando...
                     </>
                   ) : (
-                    editingProduct ? 'Actualizar' : 'Crear Producto'
+                    editingProduct ? 'Guardar Cambios' : 'Crear Producto'
                   )}
                 </button>
               </div>
@@ -449,11 +488,14 @@ export default function InventoryPage() {
 
       {/* Adjust Stock Modal */}
       {isAdjustOpen && selectedProductForAdjust && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-gray-900 rounded-2xl max-w-md w-full shadow-2xl p-6">
-            <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Ajustar Stock</h2>
-            <p className="text-sm text-gray-500 mb-6">
-              Producto: <span className="font-bold text-gray-900 dark:text-white">{selectedProductForAdjust.name}</span>
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
+          <div className="bg-[#0a0a0f] border border-white/10 rounded-3xl max-w-md w-full shadow-2xl p-8 relative overflow-hidden animate-in zoom-in-95 duration-200">
+             {/* Modal Glow */}
+            <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-emerald-500 to-teal-500" />
+            
+            <h2 className="text-xl font-bold text-white mb-2">Ajustar Stock</h2>
+            <p className="text-sm text-gray-400 mb-6 font-medium">
+              Producto: <span className="text-emerald-400">{selectedProductForAdjust.name}</span>
             </p>
             <form onSubmit={(e) => {
               e.preventDefault()
@@ -465,47 +507,55 @@ export default function InventoryPage() {
                   reason: formData.get('reason') as string
                 }
               })
-            }} className="space-y-4">
+            }} className="space-y-5">
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Cantidad del Ajuste (puede ser negativa)
+                <label className="block text-xs font-medium text-gray-400 ml-1 mb-1.5">
+                  Cantidad del Ajuste
                 </label>
                 <input
                   name="quantity"
                   type="number"
                   required
                   autoFocus
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg dark:bg-gray-800"
-                  placeholder="Ej: 5 o -2"
+                  className="w-full px-4 py-3 border border-white/10 rounded-xl bg-white/5 text-white focus:ring-2 focus:ring-emerald-500/50 outline-none transition-all placeholder:text-gray-600"
+                  placeholder="Ej: 5 (entrada) o -2 (salida)"
                 />
+                <p className="text-[10px] text-gray-500 mt-2">
+                   Use números positivos para entradas y negativos para salidas.
+                </p>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                <label className="block text-xs font-medium text-gray-400 ml-1 mb-1.5">
                   Motivo
                 </label>
-                <select
-                  name="reason"
-                  required
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg dark:bg-gray-800"
-                >
-                  <option value="Corrección de inventario">Corrección de inventario</option>
-                  <option value="Daño / Merma">Daño / Merma</option>
-                  <option value="Devolución">Devolución</option>
-                  <option value="Ajuste manual">Ajuste manual</option>
-                </select>
+                <div className="relative">
+                   <select
+                      name="reason"
+                      required
+                      className="w-full px-4 py-3 border border-white/10 rounded-xl bg-white/5 text-white focus:ring-2 focus:ring-emerald-500/50 outline-none transition-all appearance-none cursor-pointer"
+                    >
+                      <option value="Corrección de inventario" className="bg-[#0a0a0f]">Corrección de inventario</option>
+                      <option value="Daño / Merma" className="bg-[#0a0a0f]">Daño / Merma</option>
+                      <option value="Devolución" className="bg-[#0a0a0f]">Devolución</option>
+                      <option value="Ajuste manual" className="bg-[#0a0a0f]">Ajuste manual</option>
+                    </select>
+                     <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none">
+                        <svg className="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" /></svg>
+                     </div>
+                </div>
               </div>
               <div className="flex gap-3 pt-4">
                 <button
                   type="button"
                   onClick={() => setIsAdjustOpen(false)}
-                  className="flex-1 px-4 py-2 border rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800"
+                   className="flex-1 px-4 py-3.5 border border-white/10 text-gray-300 rounded-xl font-medium hover:bg-white/5 transition-colors"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
                   disabled={adjustMutation.isPending}
-                  className="flex-1 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-semibold flex items-center justify-center gap-2"
+                  className="flex-1 px-4 py-3.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white rounded-xl font-bold shadow-lg shadow-emerald-500/20 flex items-center justify-center gap-2 transition-all hover:scale-[1.02] active:scale-[0.98]"
                 >
                   {adjustMutation.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
                   Confirmar
