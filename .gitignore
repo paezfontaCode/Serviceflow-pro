@@ -1,15 +1,24 @@
-# Dependencias
+# Python
+backend/venv/
+backend/.venv/
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Node / Frontend
 node_modules/
-.DS_Store
-
-# Docker & DB
-postgres_data/
-*.log
-
-# Entorno (Secretos)
-.env
-.env.local
-
-# Build
+frontend/node_modules/
 dist/
 build/
+
+# Entorno y Secretos
+.env
+.env.local
+backend/.env
+
+# Base de datos local
+postgres_data/
+
+# Otros
+.DS_Store
+*.log
