@@ -1,0 +1,15 @@
+# Dependencias
+node_modules/
+.DS_Store
+
+# Docker & DB
+postgres_data/
+*.log
+
+# Entorno (Secretos)
+.env
+.env.local
+
+# Build
+dist/
+build/

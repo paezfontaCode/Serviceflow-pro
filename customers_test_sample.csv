@@ -1,0 +1,5 @@
+name,dni,email,phone,address,payment_terms
+Juan Perez,V-12345678,juan@example.com,0414-1111111,"Calle 1, Caracas",30
+Maria Garcia,V-87654321,maria@example.com,0412-2222222,"Av. Bolivar, Valencia",15
+Inversiones Tech J-123,J-12345678-9,ventas@inversiones.com,0212-3333333,"CCCT, Nivel C1",45
+Pedro Lopez,V-11223344,pedro@gmail.com,0416-4444444,"Urb. La Paz, Maracaibo",30
