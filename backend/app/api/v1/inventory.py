@@ -58,27 +58,45 @@ def create_product(
     db: Session = Depends(get_db),
     current_user = Depends(get_current_active_user)
 ):
+    print(f"DEBUG: Starting create_product with: {product_in}")
     # Check if SKU exists
     if product_in.sku:
         existing = db.query(Product).filter(Product.sku == product_in.sku).first()
         if existing:
             raise HTTPException(status_code=400, detail="Un producto con este SKU ya existe.")
 
-    # Extract initial_stock separately as it's not a field on the Product model
+    # Extract inventory_quantity separately as it's not a field on the Product model
     product_data = product_in.model_dump()
-    initial_stock = product_data.pop("initial_stock", 0)
+    inventory_quantity = product_data.pop("inventory_quantity", 0)
+    print(f"DEBUG: product_data keys after pop: {product_data.keys()}")
 
-    db_product = Product(**product_data)
-    db.add(db_product)
-    db.flush() # Get product ID
-    
-    # Automatically create inventory record
-    db_inventory = Inventory(product_id=db_product.id, quantity=initial_stock)
-    db.add(db_inventory)
-    
-    db.commit()
-    db.refresh(db_product)
-    return db_product
+    # Create product
+    try:
+        if product_in.category_id:
+             category = db.query(Category).filter(Category.id == product_in.category_id).first()
+             if not category:
+                 raise HTTPException(status_code=400, detail="La categoría seleccionada no existe.")
+
+        db_product = Product(**product_data)
+        db.add(db_product)
+        db.flush() # Get product ID
+        
+        # Automatically create inventory record
+        db_inventory = Inventory(product_id=db_product.id, quantity=inventory_quantity)
+        db.add(db_inventory)
+        
+        db.commit()
+        db.refresh(db_product)
+        return db_product
+    except HTTPException as e:
+        db.rollback()
+        raise e
+    except Exception as e:
+        db.rollback()
+        import traceback
+        tb_str = traceback.format_exc()
+        print(f"DEBUG: 500 Error Traceback: {tb_str}")
+        raise HTTPException(status_code=500, detail=f"Error al crear producto: {str(e)} | Details: {tb_str[:200]}")
 
 @router.get("/categories", response_model=List[CategoryRead])
 def read_categories(
@@ -117,20 +135,20 @@ def update_product(
     
     # 1. Separar la cantidad del resto de los datos
     update_data = product_in.model_dump(exclude_unset=True)
-    quantity = update_data.pop("quantity", None) # Extraemos 'quantity' si viene en el JSON
+    inventory_quantity = update_data.pop("inventory_quantity", None)
     
     # 2. Actualizar datos básicos del producto (nombre, precio, etc.)
     for field, value in update_data.items():
         setattr(product, field, value)
     
     # 3. ACTUALIZAR EL STOCK (La parte que faltaba)
-    if quantity is not None:
+    if inventory_quantity is not None:
         inventory = db.query(Inventory).filter(Inventory.product_id == product.id).first()
         if inventory:
-            inventory.quantity = quantity
+            inventory.quantity = inventory_quantity
         else:
             # Si por algún error el producto no tenía registro de inventario, lo creamos
-            new_inventory = Inventory(product_id=product.id, quantity=quantity)
+            new_inventory = Inventory(product_id=product.id, quantity=inventory_quantity)
             db.add(new_inventory)
     
     db.commit()
