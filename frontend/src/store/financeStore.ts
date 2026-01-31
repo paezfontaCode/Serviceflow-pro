@@ -28,7 +28,7 @@ interface FinanceState {
   ) => Promise<void>;
 }
 
-export const useFinanceStore = create<FinanceState>((set, get) => ({
+export const useFinanceStore = create<FinanceState>((set) => ({
   activeSession: null,
   isLoading: false,
   checkActiveSession: async () => {

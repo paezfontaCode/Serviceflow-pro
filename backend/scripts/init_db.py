@@ -57,7 +57,7 @@ def init_db():
             default_rate = ExchangeRate(
                 base_currency="USD",
                 target_currency="VES",
-                rate=36.00,
+                rate=360.00,
                 source="Manual",
                 effective_date=date.today(),
                 is_active=True
@@ -71,11 +71,11 @@ def init_db():
         category_count = db.query(Category).count()
         if category_count == 0:
             default_categories = [
-                Category(name="Repuestos", description="Componentes y partes para reparación"),
-                Category(name="Accesorios", description="Complementos para equipos y periféricos"),
-                Category(name="Software", description="Licencias y programas"),
-                Category(name="Hardware", description="Equipos completos y componentes mayores"),
-                Category(name="Servicios", description="Mano de obra y servicios técnicos")
+                Category(name="Repuestos", description="Componentes y partes para reparación", type="physical"),
+                Category(name="Accesorios", description="Complementos para equipos y periféricos", type="physical"),
+                Category(name="Software", description="Licencias y programas", type="service"),
+                Category(name="Hardware", description="Equipos completos y componentes mayores", type="service"),
+                Category(name="Servicios", description="Mano de obra y servicios técnicos", type="service")
             ]
             db.add_all(default_categories)
             db.commit()

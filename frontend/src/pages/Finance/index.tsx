@@ -1,7 +1,7 @@
-import { 
-    TrendingUp, 
-    TrendingDown, 
-    ArrowUpRight, 
+import {
+    TrendingUp,
+    TrendingDown,
+    ArrowUpRight,
     Calendar,
     Filter,
     ArrowRight,
@@ -13,26 +13,21 @@ import { financeService, CashSessionRead } from '@/services/api/financeService';
 import { formatUSD, formatVES } from '@/utils/currency';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { 
-    AreaChart, 
-    Area, 
-    XAxis, 
-    YAxis, 
-    CartesianGrid, 
-    Tooltip, 
+import {
+    AreaChart,
+    Area,
+    XAxis,
+    YAxis,
+    CartesianGrid,
+    Tooltip,
     ResponsiveContainer
 } from 'recharts';
 import { useState, useEffect } from 'react';
 
-const MOCK_FINANCE_DATA = [
-    { name: 'Lun', ingresos: 4500, egresos: 1200 },
-    { name: 'Mar', ingresos: 3800, egresos: 2100 },
-    { name: 'Mie', ingresos: 5200, egresos: 1800 },
-    { name: 'Jue', ingresos: 4800, egresos: 2500 },
-    { name: 'Vie', ingresos: 6100, egresos: 3000 },
-    { name: 'Sab', ingresos: 7500, egresos: 4200 },
-    { name: 'Dom', ingresos: 3200, egresos: 1500 },
-];
+const calculateProgress = (amount: number | undefined, total: number | undefined) => {
+    if (!total || total === 0) return 0;
+    return ((amount || 0) / total) * 100;
+};
 
 export default function Finance() {
     const [isMounted, setIsMounted] = useState(false);
@@ -44,6 +39,11 @@ export default function Finance() {
     const { data: sessions } = useQuery({
         queryKey: ['cashSessions'],
         queryFn: financeService.getCashSessions,
+    });
+
+    const { data: cashflow } = useQuery({
+        queryKey: ['cashflowHistory'],
+        queryFn: () => financeService.getCashflowHistory(7),
     });
 
     useEffect(() => {
@@ -67,7 +67,7 @@ export default function Finance() {
                     <h2 className="text-3xl font-black text-white tracking-tight">Módulo Financiero</h2>
                     <p className="text-slate-500 font-medium">Consolidado general y control de flujo de caja</p>
                 </div>
-                
+
                 <div className="flex items-center gap-3">
                     <button className="btn-primary px-6 py-3 text-sm flex items-center gap-2 group">
                         <Calendar size={18} />
@@ -82,26 +82,26 @@ export default function Finance() {
 
             {/* Financial Status Cards */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <FinancialCard 
+                <FinancialCard
                     title="Utilidad Estimada"
-                    amount={formatUSD(summary?.cash_in_session || 0)} 
+                    amount={formatUSD(summary?.cash_in_session || 0)}
                     subAmount={formatVES(summary?.cash_in_session_ves || 0)}
                     icon={TrendingUp}
                     trend="+12.5%"
                     color="primary"
                     description="Ventas menos gastos (Día)"
                 />
-                <FinancialCard 
+                <FinancialCard
                     title="Cuentas por Cobrar"
-                    amount={formatUSD(summary?.total_receivables || 0)} 
+                    amount={formatUSD(summary?.total_receivables || 0)}
                     icon={Users}
                     trend={`${summary?.morosos_count || 0} deudores`}
                     color="warning"
                     description="Pendiente por recaudar"
                 />
-                <FinancialCard 
+                <FinancialCard
                     title="Monto en Riesgo"
-                    amount={formatUSD(summary?.overdue_amount || 0)} 
+                    amount={formatUSD(summary?.overdue_amount || 0)}
                     icon={TrendingDown}
                     trend="Vencido"
                     color="danger"
@@ -132,28 +132,28 @@ export default function Finance() {
                     <div className="h-[350px] w-full min-h-[350px] relative">
                         {isMounted && (
                             <ResponsiveContainer width="100%" height="100%" debounce={50}>
-                                <AreaChart data={MOCK_FINANCE_DATA}>
-                                <defs>
-                                    <linearGradient id="colorIngresos" x1="0" y1="0" x2="0" y2="1">
-                                        <stop offset="5%" stopColor="#6366f1" stopOpacity={0.3}/>
-                                        <stop offset="95%" stopColor="#6366f1" stopOpacity={0}/>
-                                    </linearGradient>
-                                    <linearGradient id="colorEgresos" x1="0" y1="0" x2="0" y2="1">
-                                        <stop offset="5%" stopColor="#f43f5e" stopOpacity={0.1}/>
-                                        <stop offset="95%" stopColor="#f43f5e" stopOpacity={0}/>
-                                    </linearGradient>
-                                </defs>
-                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255,255,255,0.05)" />
-                                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#64748b', fontSize: 12}} />
-                                <YAxis axisLine={false} tickLine={false} tick={{fill: '#64748b', fontSize: 12}} />
-                                <Tooltip 
-                                    contentStyle={{ backgroundColor: '#0f172a', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px' }}
-                                    itemStyle={{ color: '#fff', fontSize: '12px', fontWeight: 'bold' }}
-                                />
-                                <Area type="monotone" dataKey="ingresos" stroke="#6366f1" strokeWidth={4} fillOpacity={1} fill="url(#colorIngresos)" />
-                                <Area type="monotone" dataKey="egresos" stroke="#f43f5e" strokeWidth={2} fillOpacity={1} fill="url(#colorEgresos)" strokeDasharray="5 5" />
-                            </AreaChart>
-                        </ResponsiveContainer>
+                                <AreaChart data={cashflow || []}>
+                                    <defs>
+                                        <linearGradient id="colorIngresos" x1="0" y1="0" x2="0" y2="1">
+                                            <stop offset="5%" stopColor="#6366f1" stopOpacity={0.3} />
+                                            <stop offset="95%" stopColor="#6366f1" stopOpacity={0} />
+                                        </linearGradient>
+                                        <linearGradient id="colorEgresos" x1="0" y1="0" x2="0" y2="1">
+                                            <stop offset="5%" stopColor="#f43f5e" stopOpacity={0.1} />
+                                            <stop offset="95%" stopColor="#f43f5e" stopOpacity={0} />
+                                        </linearGradient>
+                                    </defs>
+                                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255,255,255,0.05)" />
+                                    <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 12 }} />
+                                    <YAxis axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 12 }} />
+                                    <Tooltip
+                                        contentStyle={{ backgroundColor: '#0f172a', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px' }}
+                                        itemStyle={{ color: '#fff', fontSize: '12px', fontWeight: 'bold' }}
+                                    />
+                                    <Area type="monotone" dataKey="ingresos" stroke="#6366f1" strokeWidth={4} fillOpacity={1} fill="url(#colorIngresos)" />
+                                    <Area type="monotone" dataKey="egresos" stroke="#f43f5e" strokeWidth={2} fillOpacity={1} fill="url(#colorEgresos)" strokeDasharray="5 5" />
+                                </AreaChart>
+                            </ResponsiveContainer>
                         )}
                     </div>
                 </div>
@@ -161,12 +161,35 @@ export default function Finance() {
                 {/* Quick Reports */}
                 <div className="space-y-6">
                     <div className="glass-card p-6 border-white/5 space-y-6">
-                        <h3 className="text-xs font-black text-white uppercase tracking-widest pl-2 border-l-2 border-primary-500">Recaudación por Método</h3>
+                        <div className="flex items-center justify-between">
+                            <h3 className="text-xs font-black text-white uppercase tracking-widest pl-2 border-l-2 border-primary-500">Recaudación por Método</h3>
+                            <span className="text-[10px] text-slate-500 font-bold uppercase">Hoy</span>
+                        </div>
                         <div className="space-y-4">
-                            <MethodProgress label="Efectivo" amount="$1,240.00" progress={65} color="bg-emerald-500" />
-                            <MethodProgress label="Punto de Venta" amount="$890.50" progress={45} color="bg-primary-500" />
-                            <MethodProgress label="Pago Móvil" amount="$450.00" progress={25} color="bg-amber-500" />
-                            <MethodProgress label="Transferencia" amount="$320.00" progress={15} color="bg-blue-500" />
+                            <MethodProgress
+                                label="Efectivo"
+                                amount={formatUSD(summary?.collections_by_method?.['cash'] || 0)}
+                                progress={calculateProgress(summary?.collections_by_method?.['cash'], summary?.cash_in_session)}
+                                color="bg-emerald-500"
+                            />
+                            <MethodProgress
+                                label="Punto de Venta"
+                                amount={formatUSD(summary?.collections_by_method?.['card'] || 0)}
+                                progress={calculateProgress(summary?.collections_by_method?.['card'], summary?.cash_in_session)}
+                                color="bg-primary-500"
+                            />
+                            <MethodProgress
+                                label="Pago Móvil"
+                                amount={formatUSD(summary?.collections_by_method?.['pagomovil'] || 0)}
+                                progress={calculateProgress(summary?.collections_by_method?.['pagomovil'], summary?.cash_in_session)}
+                                color="bg-amber-500"
+                            />
+                            <MethodProgress
+                                label="Transferencia"
+                                amount={formatUSD(summary?.collections_by_method?.['transfer'] || 0)}
+                                progress={calculateProgress(summary?.collections_by_method?.['transfer'], summary?.cash_in_session)}
+                                color="bg-blue-500"
+                            />
                         </div>
                     </div>
 
@@ -178,15 +201,24 @@ export default function Finance() {
                             <h3 className="text-sm font-black text-white uppercase tracking-tight">Acciones Rápidas</h3>
                         </div>
                         <div className="grid grid-cols-1 gap-3">
-                            <button className="flex items-center justify-between p-4 rounded-xl hover:bg-white/5 transition-all group border border-white/5">
+                            <button
+                                onClick={() => window.location.href = '/reports?tab=daily'}
+                                className="flex items-center justify-between p-4 rounded-xl hover:bg-white/5 transition-all group border border-white/5"
+                            >
                                 <span className="text-xs font-bold text-slate-300">Resumen del Turno</span>
                                 <ArrowRight size={16} className="text-slate-500 group-hover:translate-x-1 transition-transform" />
                             </button>
-                            <button className="flex items-center justify-between p-4 rounded-xl hover:bg-white/5 transition-all group border border-white/5">
+                            <button
+                                onClick={() => window.location.href = '/reports?tab=receivables'}
+                                className="flex items-center justify-between p-4 rounded-xl hover:bg-white/5 transition-all group border border-white/5"
+                            >
                                 <span className="text-xs font-bold text-slate-300">Cuentas Pendientes</span>
                                 <ArrowRight size={16} className="text-slate-500 group-hover:translate-x-1 transition-transform" />
                             </button>
-                            <button className="flex items-center justify-between p-4 rounded-xl hover:bg-white/5 transition-all group border border-white/5">
+                            <button
+                                onClick={() => window.location.href = '/expenses'}
+                                className="flex items-center justify-between p-4 rounded-xl hover:bg-white/5 transition-all group border border-white/5"
+                            >
                                 <span className="text-xs font-bold text-slate-300">Reporte de Gastos</span>
                                 <ArrowRight size={16} className="text-slate-500 group-hover:translate-x-1 transition-transform" />
                             </button>
@@ -243,12 +275,12 @@ export default function Finance() {
                                             {session.status === 'closed' ? (
                                                 <div className="flex flex-col">
                                                     <span className={`font-bold ${(Number(session.shortage) > 0 || Number(session.shortage_ves) > 0) ? 'text-rose-500' : 'text-emerald-500'}`}>
-                                                        {Number(session.overage) > 0 ? `+${formatUSD(Number(session.overage))}` : 
-                                                         Number(session.shortage) > 0 ? `-${formatUSD(Number(session.shortage))}` : '0.00 USD'}
+                                                        {Number(session.overage) > 0 ? `+${formatUSD(Number(session.overage))}` :
+                                                            Number(session.shortage) > 0 ? `-${formatUSD(Number(session.shortage))}` : '0.00 USD'}
                                                     </span>
                                                     <span className="text-[10px] text-slate-500">
-                                                        {Number(session.overage_ves) > 0 ? `+${formatVES(Number(session.overage_ves))}` : 
-                                                         Number(session.shortage_ves) > 0 ? `-${formatVES(Number(session.shortage_ves))}` : '0.00 VES'}
+                                                        {Number(session.overage_ves) > 0 ? `+${formatVES(Number(session.overage_ves))}` :
+                                                            Number(session.shortage_ves) > 0 ? `-${formatVES(Number(session.shortage_ves))}` : '0.00 VES'}
                                                     </span>
                                                 </div>
                                             ) : (
@@ -300,7 +332,7 @@ function FinancialCard({ title, amount, subAmount, icon: Icon, trend, color, des
                 </div>
                 <p className="text-[10px] text-slate-600 font-medium pt-1 uppercase tracking-tight">{description}</p>
             </div>
-            
+
             {/* Decoration */}
             <div className={`absolute -right-4 -bottom-4 w-24 h-24 rounded-full ${style.bg} blur-3xl opacity-20 pointer-events-none`}></div>
         </div>
@@ -315,8 +347,8 @@ function MethodProgress({ label, amount, progress, color }: any) {
                 <span className="text-white">{amount}</span>
             </div>
             <div className="h-1.5 w-full bg-white/5 rounded-full overflow-hidden">
-                <div 
-                    className={`h-full ${color} rounded-full transition-all duration-1000`} 
+                <div
+                    className={`h-full ${color} rounded-full transition-all duration-1000`}
                     style={{ width: `${progress}%` }}
                 ></div>
             </div>

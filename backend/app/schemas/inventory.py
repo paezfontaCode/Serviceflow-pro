@@ -6,6 +6,7 @@ from datetime import datetime
 class CategoryBase(BaseModel):
     name: str
     description: Optional[str] = None
+    type: str = "physical"
 
 class CategoryRead(CategoryBase):
     id: int
@@ -25,6 +26,7 @@ class ProductBase(BaseModel):
 
 class ProductCreate(ProductBase):
     initial_stock: int = 0
+    inventory_quantity: Optional[int] = None # Frontend sends this
 
 class ProductUpdate(BaseModel):
     sku: Optional[str] = None
@@ -36,6 +38,7 @@ class ProductUpdate(BaseModel):
     brand: Optional[str] = None
     model: Optional[str] = None
     is_active: Optional[bool] = None
+    inventory_quantity: Optional[int] = None # Support stock update via edit
 
 class ProductRead(ProductBase):
     id: int
@@ -54,10 +57,12 @@ class StockAdjustment(BaseModel):
 class CategoryCreate(BaseModel):
     name: str
     description: Optional[str] = None
+    type: str = "physical"
 
 class CategoryUpdate(BaseModel):
     name: Optional[str] = None
     description: Optional[str] = None
+    type: Optional[str] = None
     is_active: Optional[bool] = None
 
 class InventoryRead(BaseModel):

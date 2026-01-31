@@ -10,6 +10,7 @@ from ...schemas.finance import (
     CashSessionCreate, CashSessionRead, CashSessionClose
 )
 from ..deps import get_current_active_user
+from ...core.cache import cache
 
 router = APIRouter(tags=["finance"])
 
@@ -43,13 +44,28 @@ def create_exchange_rate(
     db.add(db_rate)
     db.commit()
     db.refresh(db_rate)
+    
+    # Invalidate cache
+    cache.delete("current_exchange_rate")
+    
     return db_rate
 
 @router.get("/exchange-rates/current/", response_model=ExchangeRateRead)
 def get_current_rate(db: Session = Depends(get_db)):
+    # Try cache first
+    cached_rate = cache.get("current_exchange_rate")
+    if cached_rate:
+        return cached_rate
+        
     rate = db.query(ExchangeRate).filter(ExchangeRate.is_active == True).order_by(ExchangeRate.effective_date.desc()).first()
     if not rate:
         raise HTTPException(status_code=404, detail="No active exchange rate found")
+    
+    # Store in cache for 10 minutes
+    # Using Pydantic's model_dump to ensure it is JSON serializable for the CacheService
+    rate_data = ExchangeRateRead.model_validate(rate).model_dump()
+    cache.set("current_exchange_rate", rate_data, ttl=600)
+    
     return rate
 
 # --- Cash Session Endpoints ---
@@ -474,6 +490,29 @@ def get_finance_summary(
     rate = db.query(ExchangeRate).filter(ExchangeRate.is_active == True).first()
     exchange_rate = rate.rate if rate else Decimal(1)
     
+    # Collections by method (Today)
+    collections_by_method = db.query(
+        CashTransaction.payment_method if hasattr(CashTransaction, 'payment_method') else Payment.payment_method,
+        func.sum(CashTransaction.amount_usd) if hasattr(CashTransaction, 'payment_method') else func.sum(Payment.amount_usd)
+    ).filter(
+        func.date(CashTransaction.created_at if hasattr(CashTransaction, 'payment_method') else Payment.created_at) == today
+    ).group_by(
+        CashTransaction.payment_method if hasattr(CashTransaction, 'payment_method') else Payment.payment_method
+    ).all()
+    
+    # Wait, let's fix the logic for collections. 
+    # If the model doesn't have it, we use Payment which has it.
+    collections = db.query(
+        Payment.payment_method,
+        func.sum(Payment.amount_usd)
+    ).filter(
+        func.date(Payment.created_at) == today
+    ).group_by(
+        Payment.payment_method
+    ).all()
+    
+    collections_dict = {m: float(a) for m, a in collections}
+
     return {
         "total_receivables": float(total_receivables),
         "overdue_amount": float(overdue_amount),
@@ -482,8 +521,61 @@ def get_finance_summary(
         "cash_in_session_ves": float(cash_in_session_ves),
         "exchange_rate": float(exchange_rate),
         "session_active": session is not None,
-        "session_code": session.session_code if session else None
+        "session_code": session.session_code if session else None,
+        "collections_by_method": collections_dict
     }
+
+@router.get("/cashflow")
+def get_cashflow_history(
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_active_user),
+    days: int = 7
+):
+    """Returns daily income vs expenses for the last X days"""
+    from datetime import date, timedelta
+    from sqlalchemy import func
+    
+    end_date = date.today()
+    start_date = end_date - timedelta(days=days-1)
+    
+    # Income (Sales and Payments)
+    income_data = db.query(
+        func.date(CashTransaction.created_at).label('date'),
+        func.sum(CashTransaction.amount_usd).label('total')
+    ).filter(
+        CashTransaction.transaction_type.in_(['sale', 'payment']),
+        CashTransaction.created_at >= start_date
+    ).group_by(func.date(CashTransaction.created_at)).all()
+    
+    # Expenses
+    expense_data = db.query(
+        func.date(CashTransaction.created_at).label('date'),
+        func.sum(CashTransaction.amount_usd).label('total')
+    ).filter(
+        CashTransaction.transaction_type == 'expense',
+        CashTransaction.created_at >= start_date
+    ).group_by(func.date(CashTransaction.created_at)).all()
+    
+    # Format for chart
+    history = []
+    income_map = {d.strftime('%Y-%m-%d'): float(t) for d, t in income_data}
+    expense_map = {d.strftime('%Y-%m-%d'): float(t) for d, t in expense_data}
+    
+    days_map = ["Dom", "Lun", "Mar", "Mie", "Jue", "Vie", "Sab"]
+    
+    for i in range(days):
+        current_date = start_date + timedelta(days=i)
+        date_str = current_date.strftime('%Y-%m-%d')
+        day_name = days_map[int(current_date.strftime('%w'))]
+        
+        history.append({
+            "name": day_name,
+            "full_date": date_str,
+            "ingresos": income_map.get(date_str, 0),
+            "egresos": expense_map.get(date_str, 0)
+        })
+        
+    return history
 
 # --- Morosos Endpoint ---
 

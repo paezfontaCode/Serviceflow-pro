@@ -9,6 +9,9 @@ from ...core.database import get_db
 from ..deps import get_current_active_user
 from ...models.inventory import Product, Inventory
 from ...models.repair import Repair
+from ...services.report_service import ReportService
+from ...utils.pdf_generator import PDFGenerator
+from datetime import date
 
 # ReportLab imports
 from reportlab.lib import colors
@@ -170,3 +173,106 @@ def get_replenishment_report(
             media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             headers={"Content-Disposition": "attachment; filename=reporte_reposicion.xlsx"}
         )
+
+@router.get("/profit-loss")
+def get_profit_loss(
+    start_date: date,
+    end_date: date,
+    format: str = "json",
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_active_user)
+):
+    data = ReportService.get_profit_loss(db, start_date, end_date)
+    
+    if format == "json":
+        return data
+        
+    elif format == "pdf":
+        pdf = PDFGenerator(filename_prefix="pyg")
+        elements = pdf.create_standard_header(db, "ESTADO DE RESULTADOS (P&G)")
+        
+        elements.append(Paragraph(f"Periodo: {start_date} al {end_date}", pdf.styles['Normal']))
+        elements.append(Spacer(1, 0.2 * inch))
+        
+        table_data = [
+            ["DESCRIPCIÓN", "MONTO (USD)"],
+            ["INGRESOS POR VENTAS", f"${data['revenue']}"],
+            ["COSTO DE VENTAS (COGS)", f"${data['cogs']}"],
+            ["UTILIDAD BRUTA", f"${data['gross_profit']}"],
+            ["GASTOS OPERATIVOS", f"${data['expenses']}"],
+            ["UTILIDAD NETA", f"${data['net_profit']}"]
+        ]
+        
+        t = Table(table_data, colWidths=[4*inch, 2*inch])
+        t.setStyle(pdf.get_table_style())
+        elements.append(t)
+        
+        buffer = pdf.generate_streaming_response(elements)
+        return StreamingResponse(
+            buffer,
+            media_type="application/pdf",
+            headers={"Content-Disposition": f"attachment; filename={pdf.filename}"}
+        )
+
+@router.get("/aging")
+def get_aging_report(
+    format: str = "json",
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_active_user)
+):
+    data = ReportService.get_aging_report(db)
+    
+    if format == "json":
+        return data
+        
+    elif format == "pdf":
+        pdf = PDFGenerator(filename_prefix="cuentas_por_cobrar")
+        elements = pdf.create_standard_header(db, "REPORTE DE CUENTAS POR COBRAR (ANTIGÜEDAD)")
+        
+        table_data = [["RANGO DÍAS", "MONTO PENDIENTE (USD)"]]
+        for bucket, amount in data.items():
+            table_data.append([bucket, f"${amount}"])
+            
+        t = Table(table_data, colWidths=[3*inch, 3*inch])
+        t.setStyle(pdf.get_table_style())
+        elements.append(t)
+        
+        buffer = pdf.generate_streaming_response(elements)
+        return StreamingResponse(buffer, media_type="application/pdf")
+
+@router.get("/kardex/{product_id}")
+def get_product_kardex(
+    product_id: int,
+    format: str = "json",
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_active_user)
+):
+    product = db.query(Product).filter(Product.id == product_id).first()
+    if not product:
+        raise HTTPException(status_code=404, detail="Producto no encontrado")
+        
+    data = ReportService.get_product_kardex(db, product_id)
+    
+    if format == "json":
+        return data
+        
+    elif format == "pdf":
+        pdf = PDFGenerator(filename_prefix=f"kardex_{product_id}")
+        elements = pdf.create_standard_header(db, f"KARDEX DE INVENTARIO: {product.name}")
+        
+        table_data = [["Fecha", "Tipo", "Referencia", "Cant.", "Usuario"]]
+        for log in data:
+            table_data.append([
+                log["date"].strftime("%d/%m/%Y"),
+                log["type"],
+                (log["reference"][:25] if log["reference"] else "N/A"),
+                str(log["change"]),
+                log["user"]
+            ])
+            
+        t = Table(table_data, colWidths=[1.2*inch, 1*inch, 2*inch, 0.8*inch, 1.5*inch])
+        t.setStyle(pdf.get_table_style())
+        elements.append(t)
+        
+        buffer = pdf.generate_streaming_response(elements)
+        return StreamingResponse(buffer, media_type="application/pdf")

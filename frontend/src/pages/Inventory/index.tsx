@@ -1,17 +1,19 @@
 import { useState } from 'react';
-import { 
-  Search, 
-  Plus, 
-  Package, 
-  TrendingUp, 
-  AlertTriangle, 
+import {
+  Search,
+  Plus,
+  Package,
+  TrendingUp,
+  AlertTriangle,
   Box,
   Edit2,
   Trash2,
   Loader2,
   Download,
-  FileSpreadsheet
+  FileSpreadsheet,
+  History
 } from 'lucide-react';
+import { reportService } from '@/services/api/reportService';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { inventoryService } from '@/services/api/inventoryService';
 import { formatUSD } from '@/utils/currency';
@@ -51,24 +53,24 @@ export default function Inventory() {
 
   const handleExport = async () => {
     try {
-        const blob = await inventoryService.exportProducts();
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = 'inventario_productos.csv';
-        document.body.appendChild(a);
-        a.click();
-        window.URL.revokeObjectURL(url);
-        document.body.removeChild(a);
-        toast.success('Exportación iniciada');
+      const blob = await inventoryService.exportProducts();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'inventario_productos.csv';
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      toast.success('Exportación iniciada');
     } catch (error) {
-        toast.error('Error al exportar productos');
+      toast.error('Error al exportar productos');
     }
   };
 
   const filteredProducts = products?.filter(p => {
-    const matchesSearch = p.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                         p.sku?.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSearch = p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      p.sku?.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesCategory = selectedCategory ? p.category_id === selectedCategory : true;
     return matchesSearch && matchesCategory;
   });
@@ -83,31 +85,31 @@ export default function Inventory() {
     <div className="space-y-8 animate-fade-in">
       {/* Header with Stats */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <StatCard 
-          title="Total Productos" 
-          value={totalProducts.toString()} 
-          icon={Package} 
+        <StatCard
+          title="Total Productos"
+          value={totalProducts.toString()}
+          icon={Package}
           trend="+12% este mes"
           color="primary"
         />
-        <StatCard 
-          title="Valor Inventario" 
-          value={formatUSD(totalValue)} 
-          icon={TrendingUp} 
+        <StatCard
+          title="Valor Inventario"
+          value={formatUSD(totalValue)}
+          icon={TrendingUp}
           trend="Basado en PVP"
           color="finance"
         />
-        <StatCard 
-          title="Bajo Stock" 
-          value={lowStock.toString()} 
-          icon={AlertTriangle} 
+        <StatCard
+          title="Bajo Stock"
+          value={lowStock.toString()}
+          icon={AlertTriangle}
           trend="Requiere atención"
           color="warning"
         />
-        <StatCard 
-          title="Sin Stock" 
-          value={outOfStock.toString()} 
-          icon={Box} 
+        <StatCard
+          title="Sin Stock"
+          value={outOfStock.toString()}
+          icon={Box}
           trend="Agotados"
           color="danger"
         />
@@ -118,16 +120,16 @@ export default function Inventory() {
         <div className="flex flex-col sm:flex-row gap-4 w-full lg:w-auto">
           <div className="relative group min-w-[300px]">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-primary-400 transition-colors" size={20} />
-            <input 
-              type="text" 
-              placeholder="Buscar por código, nombre..." 
+            <input
+              type="text"
+              placeholder="Buscar por código, nombre..."
               className="input-field pl-12 h-12"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
-          <select 
-            value={selectedCategory || ''} 
+          <select
+            value={selectedCategory || ''}
             onChange={(e) => setSelectedCategory(e.target.value ? Number(e.target.value) : null)}
             className="input-field h-12 min-w-[200px] appearance-none cursor-pointer"
           >
@@ -137,32 +139,32 @@ export default function Inventory() {
             ))}
           </select>
         </div>
-        
+
         <div className="flex gap-2 w-full lg:w-auto">
-            <button 
-                onClick={handleExport}
-                className="px-4 py-3 glass rounded-xl flex items-center gap-2 text-slate-400 hover:text-white border border-white/5 hover:bg-white/5 transition-all"
-                title="Exportar a CSV"
-            >
-                <Download size={20} />
-            </button>
-            <button 
-                onClick={() => setIsImportModalOpen(true)}
-                className="px-4 py-3 glass rounded-xl flex items-center gap-2 text-slate-400 hover:text-white border border-white/5 hover:bg-white/5 transition-all"
-                title="Importar desde CSV"
-            >
-                <FileSpreadsheet size={20} />
-            </button>
-            <button 
-              onClick={() => {
-                setSelectedProduct(undefined);
-                setIsProductFormOpen(true);
-              }}
-              className="btn-primary px-8 h-12 flex items-center gap-2 group flex-1 lg:flex-none justify-center"
-            >
-              <Plus size={20} className="group-hover:rotate-90 transition-transform" />
-              <span>Nuevo Producto</span>
-            </button>
+          <button
+            onClick={handleExport}
+            className="px-4 py-3 glass rounded-xl flex items-center gap-2 text-slate-400 hover:text-white border border-white/5 hover:bg-white/5 transition-all"
+            title="Exportar a CSV"
+          >
+            <Download size={20} />
+          </button>
+          <button
+            onClick={() => setIsImportModalOpen(true)}
+            className="px-4 py-3 glass rounded-xl flex items-center gap-2 text-slate-400 hover:text-white border border-white/5 hover:bg-white/5 transition-all"
+            title="Importar desde CSV"
+          >
+            <FileSpreadsheet size={20} />
+          </button>
+          <button
+            onClick={() => {
+              setSelectedProduct(undefined);
+              setIsProductFormOpen(true);
+            }}
+            className="btn-primary px-8 h-12 flex items-center gap-2 group flex-1 lg:flex-none justify-center"
+          >
+            <Plus size={20} className="group-hover:rotate-90 transition-transform" />
+            <span>Nuevo Producto</span>
+          </button>
         </div>
       </div>
 
@@ -234,7 +236,21 @@ export default function Inventory() {
                     </td>
                     <td className="px-6 py-4 text-right">
                       <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button 
+                        <button
+                          onClick={async () => {
+                            try {
+                              toast.info('Generando Kardex PDF...');
+                              await reportService.getKardex(product.id, 'pdf');
+                            } catch (e) {
+                              toast.error('Error al generar Kardex');
+                            }
+                          }}
+                          className="p-2 rounded-lg hover:bg-white/10 text-slate-400 hover:text-white transition-all"
+                          title="Exportar Kardex (PDF)"
+                        >
+                          <History size={16} />
+                        </button>
+                        <button
                           onClick={() => {
                             setSelectedProduct(product);
                             setIsProductFormOpen(true);
@@ -243,10 +259,10 @@ export default function Inventory() {
                         >
                           <Edit2 size={16} />
                         </button>
-                        <button 
+                        <button
                           onClick={() => {
-                            if(window.confirm('¿Seguro que desea eliminar este producto?')) {
-                                deleteMutation.mutate(product.id);
+                            if (window.confirm('¿Seguro que desea eliminar este producto?')) {
+                              deleteMutation.mutate(product.id);
                             }
                           }}
                           className="p-2 rounded-lg hover:bg-rose-500/10 text-slate-400 hover:text-rose-500 transition-all"
@@ -262,7 +278,7 @@ export default function Inventory() {
           </table>
         </div>
       </div>
-      <ProductForm 
+      <ProductForm
         isOpen={isProductFormOpen}
         onClose={() => setIsProductFormOpen(false)}
         product={selectedProduct}
@@ -271,8 +287,8 @@ export default function Inventory() {
         isOpen={isImportModalOpen}
         onClose={() => setIsImportModalOpen(false)}
         onSuccess={() => {
-             queryClient.invalidateQueries({ queryKey: ['products'] });
-             setIsImportModalOpen(false);
+          queryClient.invalidateQueries({ queryKey: ['products'] });
+          setIsImportModalOpen(false);
         }}
       />
     </div>

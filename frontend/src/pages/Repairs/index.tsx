@@ -1,14 +1,16 @@
 import { useState } from 'react';
-import { 
-  Search, 
-  Plus, 
+import {
+  Search,
+  Plus,
   Wrench,
   User,
   Smartphone,
   Calendar,
   ArrowUpRight,
-  Loader2,
-  Download
+  loader2 as Loader2,
+  Download,
+  FileText,
+  FileSpreadsheet
 } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { repairService, WorkOrderRead } from '@/services/api/repairService';
@@ -64,10 +66,10 @@ export default function Repairs() {
   });
 
   const filteredOrders = workOrders?.filter((order: WorkOrderRead) => {
-    const matchesSearch = 
-        order.customer_name?.toLowerCase().includes(searchTerm.toLowerCase()) || 
-        order.problem_description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        order.device_imei?.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSearch =
+      order.customer_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      order.problem_description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      order.device_imei?.toLowerCase().includes(searchTerm.toLowerCase());
 
     const matchesStatus = statusFilter ? order.status === statusFilter : true;
     return matchesSearch && matchesStatus;
@@ -81,18 +83,28 @@ export default function Repairs() {
           <h2 className="text-2xl font-black text-white tracking-tight">Órdenes de Reparación</h2>
           <p className="text-slate-500 text-xs font-bold uppercase tracking-widest">Gestión técnica y seguimiento</p>
         </div>
-        
-        <div className="flex items-center gap-3 w-full lg:w-auto">
-          <button 
-            onClick={() => repairService.exportRepairs()}
-            className="px-4 h-11 flex items-center gap-2 glass hover:bg-white/5 text-slate-400 hover:text-white transition-all rounded-xl border border-white/5 font-bold text-sm"
-            title="Exportar Historial"
-          >
-            <Download size={18} />
-            <span className="hidden md:inline">Exportar</span>
-          </button>
 
-          <button 
+        <div className="flex items-center gap-3 w-full lg:w-auto">
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => repairService.exportRepairs()}
+              className="px-3 h-11 flex items-center gap-2 glass hover:bg-white/5 text-slate-400 hover:text-white transition-all rounded-xl border border-white/5 font-bold text-xs"
+              title="Exportar CSV"
+            >
+              <FileSpreadsheet size={18} />
+              <span className="hidden md:inline">CSV</span>
+            </button>
+            <button
+              onClick={() => repairService.exportRepairsPDF()}
+              className="px-3 h-11 flex items-center gap-2 glass hover:bg-white/5 text-slate-400 hover:text-white transition-all rounded-xl border border-white/5 font-bold text-xs"
+              title="Exportar PDF"
+            >
+              <FileText size={18} />
+              <span className="hidden md:inline">PDF</span>
+            </button>
+          </div>
+
+          <button
             onClick={() => {
               setSelectedOrder(undefined);
               setIsOrderFormOpen(true);
@@ -108,18 +120,18 @@ export default function Repairs() {
       <div className="flex flex-col md:flex-row gap-3">
         <div className="relative flex-1 group">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-primary-400 transition-colors" size={18} />
-          <input 
-            type="text" 
-            placeholder="Buscar por cliente, descripción o IMEI..." 
+          <input
+            type="text"
+            placeholder="Buscar por cliente, descripción o IMEI..."
             className="input-field pl-11 h-11 text-sm"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
-        
+
         <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar">
           {['RECEIVED', 'IN_PROGRESS', 'COMPLETED', 'ON_HOLD', 'DELIVERED'].map((status) => (
-            <button 
+            <button
               key={status}
               onClick={() => setStatusFilter(statusFilter === status ? null : status)}
               className={`px-3 py-1.5 rounded-lg text-[10px] font-black border transition-all whitespace-nowrap uppercase tracking-tighter ${statusFilter === status ? 'bg-primary-500 text-white border-primary-400 shadow-lg shadow-primary-500/20' : 'glass border-white/5 text-slate-500 hover:text-white hover:border-white/10'}`}
@@ -144,20 +156,20 @@ export default function Repairs() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
           {filteredOrders?.map((order) => (
-            <RepairCard 
-                key={order.id} 
-                order={order} 
-                onStatusChange={(status) => updateStatusMutation.mutate({ id: order.id, status })}
-                onEdit={() => {
-                    setSelectedOrder(order);
-                    setIsOrderFormOpen(true);
-                }}
+            <RepairCard
+              key={order.id}
+              order={order}
+              onStatusChange={(status) => updateStatusMutation.mutate({ id: order.id, status })}
+              onEdit={() => {
+                setSelectedOrder(order);
+                setIsOrderFormOpen(true);
+              }}
             />
           ))}
         </div>
       )}
 
-      <WorkOrderForm 
+      <WorkOrderForm
         isOpen={isOrderFormOpen}
         onClose={() => setIsOrderFormOpen(false)}
         order={selectedOrder}
@@ -168,7 +180,7 @@ export default function Repairs() {
 
 function RepairCard({ order, onStatusChange, onEdit }: { order: WorkOrderRead, onStatusChange: (status: string) => void, onEdit: () => void }) {
   const balance = (Number(order.labor_cost_usd) + Number(order.parts_cost_usd)) - Number(order.paid_amount_usd);
-  
+
   return (
     <div className="glass-card group hover:border-primary-500/40 transition-all duration-300 flex flex-col overflow-hidden border-white/5">
       {/* Interaction Layer */}
@@ -185,16 +197,16 @@ function RepairCard({ order, onStatusChange, onEdit }: { order: WorkOrderRead, o
                 {order.repair_type}
               </span>
             </div>
-            <h3 
+            <h3
               onClick={onEdit}
               className="text-base font-black text-white hover:text-primary-400 cursor-pointer transition-colors uppercase tracking-tight line-clamp-1"
             >
               {order.device_model}
             </h3>
           </div>
-          
+
           <div className="relative flex-shrink-0">
-            <select 
+            <select
               className={`pl-2.5 pr-8 py-1.5 rounded-lg border text-[10px] font-black uppercase tracking-tighter cursor-pointer outline-none transition-all shadow-sm shadow-black/20 appearance-none ${STATUS_COLORS[order.status] || 'bg-slate-700 text-white border-slate-600'}`}
               value={order.status}
               onChange={(e) => onStatusChange(e.target.value)}
@@ -207,9 +219,9 @@ function RepairCard({ order, onStatusChange, onEdit }: { order: WorkOrderRead, o
               {order.status === 'ON_HOLD' && <option value="ON_HOLD">ON HOLD</option>}
             </select>
             <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none opacity-60">
-                <Search size={10} className="hidden" /> {/* Placeholder for logic, will use native arrow or tailwind peer */}
-                {/* Custom arrow for the select */}
-                <svg className="w-3 h-3 text-current" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M19 9l-7 7-7-7"></path></svg>
+              <Search size={10} className="hidden" /> {/* Placeholder for logic, will use native arrow or tailwind peer */}
+              {/* Custom arrow for the select */}
+              <svg className="w-3 h-3 text-current" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M19 9l-7 7-7-7"></path></svg>
             </div>
           </div>
         </div>
@@ -253,9 +265,9 @@ function RepairCard({ order, onStatusChange, onEdit }: { order: WorkOrderRead, o
           </div>
 
           <div className="flex items-center gap-1.5">
-            <WhatsAppButton 
+            <WhatsAppButton
               customerName={order.customer_name || 'Cliente'}
-              phone={order.customer_phone} 
+              phone={order.customer_phone}
               orderId={order.id}
               status={order.status}
               device={order.device_model}
@@ -263,7 +275,15 @@ function RepairCard({ order, onStatusChange, onEdit }: { order: WorkOrderRead, o
               className="h-9 px-3 text-[10px]"
             />
 
-            <button 
+            <button
+              onClick={() => repairService.getReceipt(order.id)}
+              className="w-9 h-9 rounded-lg bg-white/5 hover:bg-white/10 text-primary-400 hover:text-primary-300 transition-all flex items-center justify-center border border-white/5"
+              title="Descargar Recibo"
+            >
+              <Download size={16} />
+            </button>
+
+            <button
               onClick={onEdit}
               className="w-9 h-9 rounded-lg bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white transition-all flex items-center justify-center group/btn border border-white/5"
             >

@@ -8,8 +8,8 @@ logger = logging.getLogger(__name__)
 def migrate():
     commands = [
         # Columns for repairs
-        "ALTER TABLE repairs ADD COLUMN repair_type VARCHAR(20) DEFAULT 'service'",
-        "ALTER TABLE repairs ADD COLUMN labor_cost_usd DECIMAL(10, 2) DEFAULT 0",
+        "ALTER TABLE repairs ADD COLUMN IF NOT EXISTS repair_type VARCHAR(20) DEFAULT 'service'",
+        "ALTER TABLE repairs ADD COLUMN IF NOT EXISTS labor_cost_usd DECIMAL(10, 2) DEFAULT 0",
     ]
     
     with engine.connect() as conn:

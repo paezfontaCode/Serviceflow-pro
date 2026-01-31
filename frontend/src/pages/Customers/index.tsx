@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { 
+import {
     Users, Search, UserPlus, Mail, Phone, ChevronRight,
     Loader2, Filter, Edit2, Trash2, History, Wrench, ShoppingCart, ArrowRight,
     Download, Upload
@@ -17,7 +17,7 @@ export default function Customers() {
     const [editingCustomer, setEditingCustomer] = useState<any>(null); // Type this properly if possible
     const navigate = useNavigate();
     const queryClient = useQueryClient();
-    
+
     const { data: customers, isLoading } = useQuery({
         queryKey: ['customers'],
         queryFn: customerService.getCustomers,
@@ -33,7 +33,7 @@ export default function Customers() {
     });
 
     const updateMutation = useMutation({
-        mutationFn: ({ id, data }: { id: number; data: Partial<CustomerCreate> }) => 
+        mutationFn: ({ id, data }: { id: number; data: Partial<CustomerCreate> }) =>
             customerService.updateCustomer(id, data),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['customers'] });
@@ -83,7 +83,7 @@ export default function Customers() {
         setIsFormOpen(true);
     };
 
-    const filteredCustomers = customers?.filter(c => 
+    const filteredCustomers = customers?.filter(c =>
         c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         c.phone?.includes(searchTerm) ||
         c.dni?.includes(searchTerm)
@@ -98,9 +98,9 @@ export default function Customers() {
                     <h2 className="text-3xl font-black text-white tracking-tight">Gestión de Clientes</h2>
                     <p className="text-slate-500 font-medium">Base de datos centralizada de clientes y su historial</p>
                 </div>
-                
+
                 <div className="flex items-center gap-3">
-                    <button 
+                    <button
                         onClick={handleExport}
                         className="px-4 py-3 flex items-center gap-2 glass hover:bg-white/5 text-slate-400 hover:text-white transition-all rounded-2xl border border-white/5 font-bold text-sm"
                         title="Exportar a CSV"
@@ -108,8 +108,8 @@ export default function Customers() {
                         <Download size={18} />
                         Exportar
                     </button>
-                    
-                    <button 
+
+                    <button
                         onClick={() => setIsImportModalOpen(true)}
                         className="px-4 py-3 flex items-center gap-2 glass hover:bg-white/5 text-slate-400 hover:text-white transition-all rounded-2xl border border-white/5 font-bold text-sm"
                         title="Importar desde CSV"
@@ -118,7 +118,7 @@ export default function Customers() {
                         Importar
                     </button>
 
-                    <button 
+                    <button
                         onClick={openCreateModal}
                         className="btn-primary px-6 py-3 flex items-center gap-2 group shadow-glow"
                     >
@@ -133,9 +133,9 @@ export default function Customers() {
                 <div className="lg:col-span-3 glass-card p-2 border-white/5 flex flex-col md:flex-row gap-2">
                     <div className="relative flex-1 group">
                         <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-primary-400 transition-colors" size={20} />
-                        <input 
-                            type="text" 
-                            placeholder="Buscar por nombre, teléfono o DNI..." 
+                        <input
+                            type="text"
+                            placeholder="Buscar por nombre, teléfono o DNI..."
                             className="w-full bg-slate-900/50 border-none rounded-2xl pl-12 h-14 text-white focus:ring-2 focus:ring-primary-500/50 outline-none transition-all"
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
@@ -145,9 +145,9 @@ export default function Customers() {
                         <Filter size={18} />
                         <span className="font-bold text-sm">Filtros</span>
                     </button>
-                 </div>
+                </div>
 
-                 <div className="glass-card p-6 border-white/5 flex items-center gap-4 bg-primary-600/10">
+                <div className="glass-card p-6 border-white/5 flex items-center gap-4 bg-primary-600/10">
                     <div className="w-12 h-12 rounded-2xl bg-primary-500/20 flex items-center justify-center text-primary-400 shadow-glow">
                         <Users size={24} />
                     </div>
@@ -155,7 +155,7 @@ export default function Customers() {
                         <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest leading-none mb-1">Total Clientes</p>
                         <p className="text-2xl font-black text-white">{customers?.length || 0}</p>
                     </div>
-                 </div>
+                </div>
             </div>
 
             {/* Customers Table/Grid */}
@@ -188,7 +188,7 @@ export default function Customers() {
                                     <tr key={customer.id} className="hover:bg-white/[0.02] transition-colors group">
                                         <td className="px-6 py-5">
                                             <div className="flex flex-col">
-                                                <Link 
+                                                <Link
                                                     to={`/customers/${customer.id}`}
                                                     className="text-white font-bold group-hover:text-primary-400 transition-colors"
                                                 >
@@ -218,30 +218,34 @@ export default function Customers() {
                                         </td>
                                         <td className="px-6 py-5">
                                             <div className="flex items-center gap-2">
-                                                <button 
+                                                <button
                                                     onClick={() => navigate(`/customers/${customer.id}`)}
-                                                    className="p-2 rounded-lg bg-white/5 text-slate-400 hover:text-primary-400 hover:bg-primary-500/10 transition-all" 
+                                                    className="p-2 rounded-lg bg-white/5 text-slate-400 hover:text-primary-400 hover:bg-primary-500/10 transition-all"
                                                     title="Ver Historial"
                                                 >
                                                     <History size={16} />
                                                 </button>
 
-                                                <button 
+                                                <button
                                                     onClick={() => openEditModal(customer)}
-                                                    className="p-2 rounded-lg bg-white/5 text-slate-400 hover:text-white hover:bg-white/10 transition-all" 
+                                                    className="p-2 rounded-lg bg-white/5 text-slate-400 hover:text-white hover:bg-white/10 transition-all"
                                                     title="Editar"
                                                 >
                                                     <Edit2 size={16} />
                                                 </button>
-                                                <button 
+                                                <button
                                                     onClick={() => handleDelete(customer.id)}
-                                                    className="p-2 rounded-lg bg-white/5 text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 transition-all" 
+                                                    className="p-2 rounded-lg bg-white/5 text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 transition-all"
                                                     title="Eliminar"
                                                 >
                                                     <Trash2 size={16} />
                                                 </button>
                                                 <div className="w-px h-6 bg-white/5 mx-1" />
-                                                <button className="p-2 rounded-lg bg-primary-600/10 text-primary-400 hover:bg-primary-500 hover:text-white transition-all shadow-low" title="Crear Venta/Reparación">
+                                                <button
+                                                    onClick={() => navigate(`/pos?customer=${customer.id}`)}
+                                                    className="p-2 rounded-lg bg-primary-600/10 text-primary-400 hover:bg-primary-500 hover:text-white transition-all shadow-low"
+                                                    title="Nueva Venta con este cliente"
+                                                >
                                                     <ArrowRight size={16} />
                                                 </button>
                                             </div>
@@ -256,7 +260,10 @@ export default function Customers() {
 
             {/* Quick Actions Footer */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="glass-card p-6 border-white/5 bg-gradient-to-br from-secondary-600/10 to-transparent flex items-center justify-between">
+                <div
+                    onClick={() => navigate('/repairs')}
+                    className="glass-card p-6 border-white/5 bg-gradient-to-br from-secondary-600/10 to-transparent flex items-center justify-between cursor-pointer hover:scale-[1.02] transition-all"
+                >
                     <div className="flex items-center gap-4">
                         <div className="w-12 h-12 rounded-2xl bg-secondary-500/20 flex items-center justify-center text-secondary-400">
                             <Wrench size={24} />
@@ -268,8 +275,11 @@ export default function Customers() {
                     </div>
                     <ChevronRight className="text-slate-600" />
                 </div>
-                
-                <div className="glass-card p-6 border-white/5 bg-gradient-to-br from-primary-600/10 to-transparent flex items-center justify-between">
+
+                <div
+                    onClick={() => navigate('/finance')}
+                    className="glass-card p-6 border-white/5 bg-gradient-to-br from-primary-600/10 to-transparent flex items-center justify-between cursor-pointer hover:scale-[1.02] transition-all"
+                >
                     <div className="flex items-center gap-4">
                         <div className="w-12 h-12 rounded-2xl bg-primary-500/20 flex items-center justify-center text-primary-400">
                             <ShoppingCart size={24} />
@@ -283,7 +293,7 @@ export default function Customers() {
                 </div>
             </div>
 
-            <CustomerForm 
+            <CustomerForm
                 isOpen={isFormOpen}
                 onClose={() => setIsFormOpen(false)}
                 onSubmit={editingCustomer ? handleUpdate : handleCreate}
@@ -291,7 +301,7 @@ export default function Customers() {
                 isEditing={!!editingCustomer}
             />
 
-            <CustomerImportModal 
+            <CustomerImportModal
                 isOpen={isImportModalOpen}
                 onClose={() => setIsImportModalOpen(false)}
                 onSuccess={() => queryClient.invalidateQueries({ queryKey: ['customers'] })}

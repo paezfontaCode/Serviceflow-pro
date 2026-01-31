@@ -11,6 +11,10 @@ from ...models.inventory import Product, Inventory
 from ...models.finance import CashSession
 from ...schemas.repair import RepairCreate, RepairRead, RepairUpdate, RepairItemCreate, RepairItemRead, RepairPaymentCreate
 from ..deps import get_current_active_user
+from ...utils.pdf_generator import PDFGenerator
+from reportlab.platypus import Paragraph, Spacer, Table, KeepTogether
+from reportlab.lib.units import inch
+from reportlab.lib import colors
 
 router = APIRouter(tags=["repairs"])
 
@@ -64,8 +68,8 @@ def create_repair(
             )
             db.add(repair_item)
         
-        # Update total parts cost in Repair record
-        db_repair.parts_cost_usd = total_parts_cost
+        # Total parts cost is calculated dynamically by the Repair model property
+        # db_repair.parts_cost_usd = total_parts_cost (Removed: property has no setter)
         
         # Log initial status
         log = RepairLog(repair_id=db_repair.id, user_id=current_user.id, status_to="received", notes="Reparación recibida")
@@ -345,6 +349,108 @@ def export_repairs_csv(
         iter([output.getvalue()]),
         media_type="text/csv",
         headers={"Content-Disposition": "attachment; filename=repairs_history.csv"}
+    )
+
+@router.get("/{repair_id}/receipt")
+def get_repair_receipt(
+    repair_id: int,
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_active_user)
+):
+    """Generate a technical service receipt in PDF format."""
+    repair = db.query(Repair).filter(Repair.id == repair_id).first()
+    if not repair:
+        raise HTTPException(status_code=404, detail="Reparación no encontrada")
+    
+    pdf = PDFGenerator(filename_prefix=f"recibo_rep_{repair_id}")
+    elements = pdf.create_standard_header(db, f"RECIBO DE SERVICIO TÉCNICO #{repair_id}")
+    
+    # Customer and Device Info
+    data = [
+        ["CLIENTE:", repair.customer.name if repair.customer else "N/A", "TLF:", repair.customer.phone if repair.customer else "N/A"],
+        ["EQUIPO:", repair.device_model, "SERIAL/IMEI:", repair.device_imei or "N/A"],
+        ["SÍNTOMA:", Paragraph(repair.problem_description, pdf.styles['Normal']), "", ""],
+        ["ESTADO:", repair.status.upper(), "TIPO:", (repair.service_type or "SERVICIO").upper()]
+    ]
+    
+    t = Table(data, colWidths=[1.2*inch, 2.5*inch, 1.2*inch, 1.3*inch])
+    t.setStyle(pdf.get_table_style())
+    elements.append(t)
+    elements.append(Spacer(1, 0.4 * inch))
+    
+    # Parts Used
+    if repair.items:
+        elements.append(Paragraph("REPUESTOS UTILIZADOS", pdf.styles['Heading3']))
+        parts_data = [["Descripción", "Cant.", "Precio Unit.", "Subtotal"]]
+        for item in repair.items:
+            parts_data.append([
+                item.product.name if item.product else "N/A",
+                str(item.quantity),
+                f"${item.unit_cost_usd}",
+                f"${item.unit_cost_usd * item.quantity}"
+            ])
+        
+        pt = Table(parts_data, colWidths=[3*inch, 0.7*inch, 1.25*inch, 1.25*inch])
+        pt.setStyle(pdf.get_table_style())
+        elements.append(pt)
+        elements.append(Spacer(1, 0.2 * inch))
+
+    # Costs
+    elements.append(Paragraph("RESUMEN DE COSTOS", pdf.styles['Heading3']))
+    total = (repair.labor_cost_usd or 0) + (repair.parts_cost_usd or 0)
+    costs_data = [
+        ["Mano de Obra:", f"${repair.labor_cost_usd or 0}"],
+        ["Repuestos:", f"${repair.parts_cost_usd or 0}"],
+        ["TOTAL:", f"${total}"],
+        ["PAGADO:", f"${repair.paid_amount_usd or 0}"],
+        ["BALANCE:", f"${total - (repair.paid_amount_usd or 0)}"]
+    ]
+    ct = Table(costs_data, colWidths=[4.7*inch, 1.5*inch])
+    ct.setStyle(pdf.get_table_style())
+    elements.append(KeepTogether(ct))
+    
+    elements.append(Spacer(1, 0.5 * inch))
+    elements.append(Paragraph("Condiciones: Garantía válida por 30 días solo en el servicio realizado. No incluye daños por humedad o golpes.", pdf.styles['Normal']))
+
+    buffer = pdf.generate_streaming_response(elements)
+    return StreamingResponse(
+        buffer,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f"attachment; filename={pdf.filename}"}
+    )
+
+@router.get("/export-pdf")
+def export_repairs_pdf(
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_active_user)
+):
+    """Export repair history as PDF."""
+    repairs = db.query(Repair).order_by(Repair.created_at.desc()).all()
+    
+    pdf = PDFGenerator(filename_prefix="historial_reparaciones")
+    elements = pdf.create_standard_header(db, "HISTORIAL DE REPARACIONES")
+    
+    data = [["ID", "Fecha", "Cliente", "Equipo", "Estado", "Total"]]
+    for r in repairs:
+        total = (r.labor_cost_usd or 0) + (r.parts_cost_usd or 0)
+        data.append([
+            str(r.id),
+            r.created_at.strftime("%d/%m/%Y"),
+            (r.customer.name[:15] if r.customer else "N/A"),
+            (r.device_model[:20] or "N/A"),
+            r.status.upper(),
+            f"${total}"
+        ])
+    
+    t = Table(data, colWidths=[0.5*inch, 1*inch, 1.5*inch, 1.7*inch, 1*inch, 0.8*inch])
+    t.setStyle(pdf.get_table_style())
+    elements.append(t)
+    
+    buffer = pdf.generate_streaming_response(elements)
+    return StreamingResponse(
+        buffer,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f"attachment; filename={pdf.filename}"}
     )
 
 

@@ -7,7 +7,7 @@ import WorkOrderForm from '../Repairs/components/WorkOrderForm';
 import { Plus } from 'lucide-react';
 import { useExchangeRateStore } from '@/store/exchangeRateStore';
 import { useFinanceStore } from '@/store/financeStore';
-import { formatUSD, formatVES } from '@/utils/currency';
+import { formatUSD, formatVES, formatExchangeRate } from '@/utils/currency';
 import { toast } from 'sonner';
 
 export default function POS() {
@@ -45,9 +45,9 @@ export default function POS() {
                     <div className="flex items-center gap-3 group text-center sm:text-left">
                         <div className="flex flex-col">
                             <span className="text-[10px] text-slate-500 font-bold uppercase">Tasa del Día</span>
-                            <span className="text-sm font-black text-finance">1 USD = {formatVES(rate).split('Bs.')[1]} Bs.</span>
+                            <span className="text-sm font-black text-finance">1 USD = {formatExchangeRate(rate)} Bs.</span>
                         </div>
-                        <button 
+                        <button
                             onClick={() => fetchRate()}
                             className="p-1.5 rounded-lg hover:bg-white/5 text-slate-500 hover:text-finance transition-all group-hover:rotate-180 duration-500"
                         >
@@ -58,7 +58,7 @@ export default function POS() {
 
                 <div className="flex items-center gap-4">
                     {activeSession && (
-                        <button 
+                        <button
                             onClick={() => setIsCloseSessionModalOpen(true)}
                             className="flex items-center gap-2 bg-rose-500/10 text-rose-400 hover:bg-rose-500 hover:text-white px-4 py-2 rounded-xl border border-rose-500/20 transition-all text-xs font-black uppercase tracking-widest"
                         >
@@ -66,7 +66,7 @@ export default function POS() {
                             <span>Cerrar Caja</span>
                         </button>
                     )}
-                    <button 
+                    <button
                         onClick={() => setIsWorkOrderOpen(true)}
                         className="flex items-center gap-2 bg-primary-500/10 text-primary-400 hover:bg-primary-500 hover:text-white px-4 py-2 rounded-xl border border-primary-500/20 transition-all text-xs font-black uppercase tracking-widest"
                     >
@@ -92,17 +92,17 @@ export default function POS() {
             </div>
 
             {/* Modals */}
-            <PaymentModal 
-                isOpen={isPaymentModalOpen} 
-                onClose={() => setIsPaymentModalOpen(false)} 
+            <PaymentModal
+                isOpen={isPaymentModalOpen}
+                onClose={() => setIsPaymentModalOpen(false)}
             />
 
-            <OpenSessionModal 
+            <OpenSessionModal
                 isOpen={isOpenSessionModalOpen}
                 onOpen={openSession}
             />
 
-            <CloseSessionModal 
+            <CloseSessionModal
                 isOpen={isCloseSessionModalOpen}
                 onClose={() => setIsCloseSessionModalOpen(false)}
                 onConfirm={closeSession}
@@ -110,7 +110,7 @@ export default function POS() {
                 rate={rate}
             />
 
-            <WorkOrderForm 
+            <WorkOrderForm
                 isOpen={isWorkOrderOpen}
                 onClose={() => setIsWorkOrderOpen(false)}
             />
@@ -156,8 +156,8 @@ function OpenSessionModal({ isOpen, onOpen }: { isOpen: boolean, onOpen: (amount
                         <div className="space-y-4">
                             <div className="relative group">
                                 <span className="absolute left-4 top-1/2 -translate-y-1/2 text-primary-500 font-black text-xl">$</span>
-                                <input 
-                                    type="number" 
+                                <input
+                                    type="number"
                                     value={amount}
                                     onChange={(e) => setAmount(e.target.value)}
                                     className="w-full h-16 bg-slate-900/50 border border-slate-700 rounded-2xl pl-12 pr-6 text-2xl font-black text-white focus:border-primary-500 outline-none transition-all"
@@ -168,8 +168,8 @@ function OpenSessionModal({ isOpen, onOpen }: { isOpen: boolean, onOpen: (amount
 
                             <div className="relative group">
                                 <span className="absolute left-4 top-1/2 -translate-y-1/2 text-amber-500 font-black text-sm">Bs.</span>
-                                <input 
-                                    type="number" 
+                                <input
+                                    type="number"
                                     value={amountVes}
                                     onChange={(e) => setAmountVes(e.target.value)}
                                     className="w-full h-14 bg-slate-900/50 border border-slate-700 rounded-2xl pl-12 pr-6 text-xl font-black text-white focus:border-amber-500 outline-none transition-all"
@@ -179,7 +179,7 @@ function OpenSessionModal({ isOpen, onOpen }: { isOpen: boolean, onOpen: (amount
                             </div>
                         </div>
 
-                        <button 
+                        <button
                             onClick={handleOpen}
                             disabled={isSubmitting}
                             className="btn-primary w-full py-4 text-lg font-bold group shadow-glow"
@@ -198,15 +198,15 @@ function OpenSessionModal({ isOpen, onOpen }: { isOpen: boolean, onOpen: (amount
     );
 }
 
-function CloseSessionModal({ 
-    isOpen, 
-    onClose, 
-    onConfirm, 
+function CloseSessionModal({
+    isOpen,
+    onClose,
+    onConfirm,
     activeSession,
     rate
-}: { 
-    isOpen: boolean, 
-    onClose: () => void, 
+}: {
+    isOpen: boolean,
+    onClose: () => void,
     onConfirm: (amount: number, amountVes: number, notes?: string) => Promise<void>,
     activeSession: any,
     rate: number
@@ -220,7 +220,7 @@ function CloseSessionModal({
 
     const diffUsd = (parseFloat(actualAmount) || 0) - (activeSession.expected_amount || 0);
     const diffVes = (parseFloat(actualAmountVes) || 0) - (activeSession.expected_amount_ves || 0);
-    
+
     // Require notes if diff > $5 (abs)
     const needsNotes = Math.abs(diffUsd) > 5 || Math.abs(diffVes / rate) > 5;
 
@@ -274,8 +274,8 @@ function CloseSessionModal({
                         <div className="grid grid-cols-2 gap-4">
                             <div className="relative group">
                                 <span className="absolute left-4 top-1/2 -translate-y-1/2 text-primary-500 font-black">$</span>
-                                <input 
-                                    type="number" 
+                                <input
+                                    type="number"
                                     value={actualAmount}
                                     onChange={(e) => setActualAmount(e.target.value)}
                                     className="w-full h-14 bg-slate-900/50 border border-slate-700 rounded-2xl pl-10 pr-4 text-xl font-black text-white focus:border-primary-500 outline-none transition-all"
@@ -285,8 +285,8 @@ function CloseSessionModal({
                             </div>
                             <div className="relative group">
                                 <span className="absolute left-4 top-1/2 -translate-y-1/2 text-amber-500 font-bold text-xs">Bs.</span>
-                                <input 
-                                    type="number" 
+                                <input
+                                    type="number"
                                     value={actualAmountVes}
                                     onChange={(e) => setActualAmountVes(e.target.value)}
                                     className="w-full h-14 bg-slate-900/50 border border-slate-700 rounded-2xl pl-11 pr-4 text-xl font-black text-white focus:border-amber-500 outline-none transition-all"
@@ -307,7 +307,7 @@ function CloseSessionModal({
 
                         <div className="space-y-2">
                             <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Notas de Cierre {needsNotes && <span className="text-rose-500">*</span>}</label>
-                            <textarea 
+                            <textarea
                                 value={notes}
                                 onChange={(e) => setNotes(e.target.value)}
                                 className="w-full bg-slate-900/50 border border-slate-700 rounded-2xl p-4 text-sm text-white focus:border-primary-500 outline-none min-h-[80px]"
@@ -317,13 +317,13 @@ function CloseSessionModal({
                     </div>
 
                     <div className="flex gap-4">
-                        <button 
+                        <button
                             onClick={onClose}
                             className="flex-[0.4] py-4 rounded-2xl border border-white/10 text-slate-400 font-bold hover:bg-white/5 transition-all"
                         >
                             Cancelar
                         </button>
-                        <button 
+                        <button
                             onClick={handleClose}
                             disabled={isSubmitting}
                             className="flex-[0.6] btn-primary py-4 text-lg font-bold shadow-glow"

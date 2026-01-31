@@ -1,43 +1,40 @@
-import { 
-  Users, 
-  ShoppingCart, 
-  Wrench, 
-  ArrowUpRight, 
-  DollarSign, 
+import {
+  Users,
+  ShoppingCart,
+  Wrench,
+  ArrowUpRight,
+  DollarSign,
   CircleAlert as AlertCircle,
   Clock,
   CheckCircle2,
   Loader2
 } from 'lucide-react';
-import { 
-  AreaChart, 
-  Area, 
-  XAxis, 
-  YAxis, 
-  CartesianGrid, 
-  Tooltip, 
+import {
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
   ResponsiveContainer,
 } from 'recharts';
 import { useQuery } from '@tanstack/react-query';
 import { financeService } from '@/services/api/financeService';
-import { formatUSD, formatVES } from '@/utils/currency';
+import { formatUSD, formatVES, formatExchangeRate } from '@/utils/currency';
 import { useState, useEffect } from 'react';
 
-const MOCK_CHART_DATA = [
-  { name: 'Lun', sales: 4000, repairs: 2400 },
-  { name: 'Mar', sales: 3000, repairs: 1398 },
-  { name: 'Mie', sales: 2000, repairs: 9800 },
-  { name: 'Jue', sales: 2780, repairs: 3908 },
-  { name: 'Vie', sales: 1890, repairs: 4800 },
-  { name: 'Sab', sales: 2390, repairs: 3800 },
-  { name: 'Dom', sales: 3490, repairs: 4300 },
-];
+// Chart data is now fetched from the API
 
 export default function Dashboard() {
   const [isMounted, setIsMounted] = useState(false);
   const { data: summary, isLoading } = useQuery({
     queryKey: ['financeSummary'],
     queryFn: financeService.getSummary,
+  });
+
+  const { data: cashflow } = useQuery({
+    queryKey: ['cashflowHistory'],
+    queryFn: () => financeService.getCashflowHistory(7),
   });
 
   useEffect(() => {
@@ -54,12 +51,12 @@ export default function Dashboard() {
         </div>
         <div className="flex items-center gap-3 glass p-2 rounded-2xl border-white/5">
           <div className="w-10 h-10 rounded-xl bg-primary-600/20 flex items-center justify-center text-primary-400">
-             <Clock size={20} />
+            <Clock size={20} />
           </div>
           <div className="pr-4">
             <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Estado Caja</p>
             <p className={`text-sm font-bold ${summary?.session_active ? 'text-emerald-400' : 'text-rose-400'}`}>
-                {summary?.session_active ? 'SESIÓN ABIERTA' : 'CAJA CERRADA'}
+              {summary?.session_active ? 'SESIÓN ABIERTA' : 'CAJA CERRADA'}
             </p>
           </div>
         </div>
@@ -67,35 +64,35 @@ export default function Dashboard() {
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <KPICard 
-          title="Ventas del Día" 
-          value={formatUSD(summary?.cash_in_session || 0)} 
+        <KPICard
+          title="Ventas del Día"
+          value={formatUSD(summary?.cash_in_session || 0)}
           subValue={formatVES(summary?.cash_in_session_ves || 0)}
-          icon={ShoppingCart} 
+          icon={ShoppingCart}
           trend="+14% vs ayer"
           color="primary"
           loading={isLoading}
         />
-        <KPICard 
-          title="Cuentas por Cobrar" 
-          value={formatUSD(summary?.total_receivables || 0)} 
-          icon={Users} 
+        <KPICard
+          title="Cuentas por Cobrar"
+          value={formatUSD(summary?.total_receivables || 0)}
+          icon={Users}
           trend={`${summary?.morosos_count || 0} deudores críticos`}
           color="warning"
           loading={isLoading}
         />
-        <KPICard 
-          title="Monto en Riesgo" 
-          value={formatUSD(summary?.overdue_amount || 0)} 
-          icon={AlertCircle} 
+        <KPICard
+          title="Monto en Riesgo"
+          value={formatUSD(summary?.overdue_amount || 0)}
+          icon={AlertCircle}
           trend="Facturas vencidas"
           color="danger"
           loading={isLoading}
         />
-        <KPICard 
-          title="Tasa de Cambio" 
-          value={`${summary?.exchange_rate || 0} Bs.`} 
-          icon={DollarSign} 
+        <KPICard
+          title="Tasa de Cambio"
+          value={`${formatExchangeRate(summary?.exchange_rate || 0)} Bs.`}
+          icon={DollarSign}
           trend="Tasa actual BCV"
           color="finance"
           loading={isLoading}
@@ -111,28 +108,28 @@ export default function Dashboard() {
               <Last7Days />
             </select>
           </div>
-          
+
           <div className="h-[350px] w-full min-h-[350px] relative">
             {isMounted && (
               <ResponsiveContainer width="100%" height="100%" debounce={50}>
-                <AreaChart data={MOCK_CHART_DATA}>
-                <defs>
-                  <linearGradient id="colorSales" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#6366f1" stopOpacity={0.3}/>
-                    <stop offset="95%" stopColor="#6366f1" stopOpacity={0}/>
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255,255,255,0.05)" />
-                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#64748b', fontSize: 12}} />
-                <YAxis axisLine={false} tickLine={false} tick={{fill: '#64748b', fontSize: 12}} />
-                <Tooltip 
-                  contentStyle={{ backgroundColor: '#0f172a', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px' }}
-                  itemStyle={{ color: '#fff', fontSize: '12px', fontWeight: 'bold' }}
-                />
-                <Area type="monotone" dataKey="sales" stroke="#6366f1" strokeWidth={3} fillOpacity={1} fill="url(#colorSales)" />
-                <Area type="monotone" dataKey="repairs" stroke="#ec4899" strokeWidth={3} fillOpacity={0} />
-              </AreaChart>
-            </ResponsiveContainer>
+                <AreaChart data={cashflow || []}>
+                  <defs>
+                    <linearGradient id="colorSales" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#6366f1" stopOpacity={0.3} />
+                      <stop offset="95%" stopColor="#6366f1" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255,255,255,0.05)" />
+                  <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 12 }} />
+                  <YAxis axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 12 }} />
+                  <Tooltip
+                    contentStyle={{ backgroundColor: '#0f172a', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px' }}
+                    itemStyle={{ color: '#fff', fontSize: '12px', fontWeight: 'bold' }}
+                  />
+                  <Area type="monotone" dataKey="ingresos" name="Ingresos" stroke="#6366f1" strokeWidth={3} fillOpacity={1} fill="url(#colorSales)" />
+                  <Area type="monotone" dataKey="egresos" name="Egresos" stroke="#ec4899" strokeWidth={3} fillOpacity={0} />
+                </AreaChart>
+              </ResponsiveContainer>
             )}
           </div>
         </div>
@@ -141,36 +138,36 @@ export default function Dashboard() {
         <div className="glass-card p-8 border-white/5 space-y-6">
           <h3 className="text-lg font-black text-white uppercase tracking-tight">Actividad Reciente</h3>
           <div className="space-y-6">
-            <ActivityItem 
-              icon={CheckCircle2} 
-              title="Venta Finalizada" 
-              time="Hace 5 min" 
-              desc="Venta #4502 por $45.00" 
-              color="text-emerald-400" 
+            <ActivityItem
+              icon={CheckCircle2}
+              title="Venta Finalizada"
+              time="Hace 5 min"
+              desc="Venta #4502 por $45.00"
+              color="text-emerald-400"
               bg="bg-emerald-500/10"
             />
-             <ActivityItem 
-              icon={Wrench} 
-              title="Equipo Recibido" 
-              time="Hace 15 min" 
-              desc="iPhone 13 - Cambio de pantalla" 
-              color="text-primary-400" 
+            <ActivityItem
+              icon={Wrench}
+              title="Equipo Recibido"
+              time="Hace 15 min"
+              desc="iPhone 13 - Cambio de pantalla"
+              color="text-primary-400"
               bg="bg-primary-500/10"
             />
-             <ActivityItem 
-              icon={AlertCircle} 
-              title="Stock Bajo" 
-              time="Hace 1 hora" 
-              desc="Memoria RAM 8GB (Quedan 2)" 
-              color="text-amber-400" 
+            <ActivityItem
+              icon={AlertCircle}
+              title="Stock Bajo"
+              time="Hace 1 hora"
+              desc="Memoria RAM 8GB (Quedan 2)"
+              color="text-amber-400"
               bg="bg-amber-500/10"
             />
-             <ActivityItem 
-              icon={Users} 
-              title="Nuevo Cliente" 
-              time="Hace 2 horas" 
-              desc="Juan Perez - Registrado" 
-              color="text-blue-400" 
+            <ActivityItem
+              icon={Users}
+              title="Nuevo Cliente"
+              time="Hace 2 horas"
+              desc="Juan Perez - Registrado"
+              color="text-blue-400"
               bg="bg-blue-500/10"
             />
           </div>
@@ -193,9 +190,9 @@ function KPICard({ title, value, subValue, icon: Icon, trend, color, loading }: 
 
   if (loading) {
     return (
-        <div className="glass-card p-6 border-white/5 h-[160px] flex items-center justify-center">
-            <Loader2 className="animate-spin text-slate-700" size={32} />
-        </div>
+      <div className="glass-card p-6 border-white/5 h-[160px] flex items-center justify-center">
+        <Loader2 className="animate-spin text-slate-700" size={32} />
+      </div>
     );
   }
 
@@ -203,7 +200,7 @@ function KPICard({ title, value, subValue, icon: Icon, trend, color, loading }: 
     <div className="glass-card p-6 border-white/5 group hover:scale-[1.02] transition-all relative overflow-hidden">
       <div className="flex justify-between items-start mb-4">
         <div className={`p-3 rounded-2xl ${colorMap[color]} group-hover:scale-110 transition-transform`}>
-           <Icon size={24} />
+          <Icon size={24} />
         </div>
         <div className="flex items-center gap-1 text-[10px] font-bold text-emerald-400 bg-emerald-500/10 px-2 py-1 rounded-full">
           <ArrowUpRight size={12} />
@@ -213,8 +210,8 @@ function KPICard({ title, value, subValue, icon: Icon, trend, color, loading }: 
       <div className="space-y-1">
         <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest">{title}</h4>
         <div className="flex items-baseline gap-2">
-            <p className="text-3xl font-black text-white">{value}</p>
-            {subValue && <span className="text-xs font-bold text-slate-500">≈ {subValue}</span>}
+          <p className="text-3xl font-black text-white">{value}</p>
+          {subValue && <span className="text-xs font-bold text-slate-500">≈ {subValue}</span>}
         </div>
       </div>
     </div>
@@ -239,5 +236,5 @@ function ActivityItem({ icon: Icon, title, time, desc, color, bg }: any) {
 }
 
 function Last7Days() {
-    return <option>Últimos 7 días</option>;
+  return <option>Últimos 7 días</option>;
 }

@@ -9,6 +9,7 @@ class Category(Base):
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String(100), unique=True, nullable=False)
     description = Column(Text)
+    type = Column(String(50), default="physical") # 'physical' for products, 'service' for labor/software
     is_active = Column(Boolean, default=True)
     
     products = relationship("Product", back_populates="category")

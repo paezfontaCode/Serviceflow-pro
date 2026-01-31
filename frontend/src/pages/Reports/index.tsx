@@ -1,22 +1,19 @@
-import { 
-    BarChart3, 
-    PieChart, 
-    Download, 
-    Calendar, 
-    ChevronDown,
-    TrendingUp,
-    TrendingDown,
+TrendingDown,
     DollarSign,
     ShoppingBag,
-    Wrench
+    Wrench,
+    FileText,
+    PieChart as PieChartIcon
 } from 'lucide-react';
-import { 
-    AreaChart, 
-    Area, 
-    XAxis, 
-    YAxis, 
-    CartesianGrid, 
-    Tooltip, 
+import { reportService } from '@/services/api/reportService';
+import { toast } from 'sonner';
+import {
+    AreaChart,
+    Area,
+    XAxis,
+    YAxis,
+    CartesianGrid,
+    Tooltip,
     ResponsiveContainer,
     Cell,
     PieChart as RePieChart,
@@ -43,7 +40,7 @@ const MOCK_CATEGORY_DATA = [
 
 export default function Reports() {
     const [isMounted, setIsMounted] = useState(false);
-    
+
     useEffect(() => {
         setIsMounted(true);
     }, []);
@@ -55,41 +52,67 @@ export default function Reports() {
                     <h2 className="text-3xl font-black text-white tracking-tight">Reportes y Analítica</h2>
                     <p className="text-slate-500 font-medium">Visualización de rendimiento y exportación de datos</p>
                 </div>
-                
+
                 <div className="flex items-center gap-3">
                     <button className="glass px-6 py-3 rounded-2xl border-white/5 text-slate-400 hover:text-white transition-all text-sm font-bold flex items-center gap-2">
                         <Calendar size={18} />
                         Últimos 30 días
                         <ChevronDown size={16} />
                     </button>
-                    <button className="btn-primary px-6 py-3 flex items-center gap-2 group shadow-glow">
-                        <Download size={18} />
-                        Exportar PDF
+                    <button
+                        onClick={async () => {
+                            const start = '2025-01-01'; // Defaulting for demo, could be picked from state
+                            const end = new Date().toISOString().split('T')[0];
+                            try {
+                                toast.info('Generando reporte P&G...');
+                                await reportService.getProfitLoss(start, end, 'pdf');
+                            } catch (e) {
+                                toast.error('Error al generar reporte');
+                            }
+                        }}
+                        className="btn-primary px-6 py-3 flex items-center gap-2 group shadow-glow"
+                    >
+                        <FileText size={18} />
+                        Exportar P&G (PDF)
+                    </button>
+                    <button
+                        onClick={async () => {
+                            try {
+                                toast.info('Generando reporte de antigüedad...');
+                                await reportService.getAgingReport('pdf');
+                            } catch (e) {
+                                toast.error('Error al generar reporte');
+                            }
+                        }}
+                        className="glass px-6 py-3 rounded-2xl border-white/5 text-slate-400 hover:text-white transition-all text-sm font-bold flex items-center gap-2"
+                    >
+                        <History size={18} />
+                        Cuentas por Cobrar
                     </button>
                 </div>
             </div>
 
             {/* Top KPIs */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                <ReportKPI 
+                <ReportKPI
                     label="Ventas Totales"
                     value="$12,450.00"
                     trend="+15%"
                     icon={DollarSign}
                 />
-                <ReportKPI 
+                <ReportKPI
                     label="Órdenes"
                     value="142"
                     trend="+8%"
                     icon={ShoppingBag}
                 />
-                <ReportKPI 
+                <ReportKPI
                     label="Servicios"
                     value="58"
                     trend="+22%"
                     icon={Wrench}
                 />
-                <ReportKPI 
+                <ReportKPI
                     label="Ticket Promedio"
                     value="$87.60"
                     trend="-3%"
@@ -114,22 +137,22 @@ export default function Reports() {
                         {isMounted && (
                             <ResponsiveContainer width="100%" height="100%" debounce={50}>
                                 <AreaChart data={MOCK_SALES_DATA}>
-                                <defs>
-                                    <linearGradient id="colorSales" x1="0" y1="0" x2="0" y2="1">
-                                        <stop offset="5%" stopColor="#6366f1" stopOpacity={0.3}/>
-                                        <stop offset="95%" stopColor="#6366f1" stopOpacity={0}/>
-                                    </linearGradient>
-                                </defs>
-                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255,255,255,0.05)" />
-                                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#64748b', fontSize: 12}} />
-                                <YAxis axisLine={false} tickLine={false} tick={{fill: '#64748b', fontSize: 12}} />
-                                <Tooltip 
-                                    contentStyle={{ backgroundColor: '#0f172a', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px' }}
-                                    itemStyle={{ color: '#fff', fontSize: '12px', fontWeight: 'bold' }}
-                                />
-                                <Area type="monotone" dataKey="sales" stroke="#6366f1" strokeWidth={4} fillOpacity={1} fill="url(#colorSales)" />
-                            </AreaChart>
-                        </ResponsiveContainer>
+                                    <defs>
+                                        <linearGradient id="colorSales" x1="0" y1="0" x2="0" y2="1">
+                                            <stop offset="5%" stopColor="#6366f1" stopOpacity={0.3} />
+                                            <stop offset="95%" stopColor="#6366f1" stopOpacity={0} />
+                                        </linearGradient>
+                                    </defs>
+                                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255,255,255,0.05)" />
+                                    <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 12 }} />
+                                    <YAxis axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 12 }} />
+                                    <Tooltip
+                                        contentStyle={{ backgroundColor: '#0f172a', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px' }}
+                                        itemStyle={{ color: '#fff', fontSize: '12px', fontWeight: 'bold' }}
+                                    />
+                                    <Area type="monotone" dataKey="sales" stroke="#6366f1" strokeWidth={4} fillOpacity={1} fill="url(#colorSales)" />
+                                </AreaChart>
+                            </ResponsiveContainer>
                         )}
                     </div>
                 </div>
@@ -145,25 +168,25 @@ export default function Reports() {
                         {isMounted && (
                             <ResponsiveContainer width="100%" height="100%" debounce={50}>
                                 <RePieChart>
-                                <Pie
-                                    data={MOCK_CATEGORY_DATA}
-                                    cx="50%"
-                                    cy="50%"
-                                    innerRadius={60}
-                                    outerRadius={80}
-                                    paddingAngle={5}
-                                    dataKey="value"
-                                >
-                                    {MOCK_CATEGORY_DATA.map((entry, index) => (
-                                        <Cell key={`cell-${index}`} fill={entry.color} />
-                                    ))}
-                                </Pie>
-                                <Tooltip 
-                                     contentStyle={{ backgroundColor: '#0f172a', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px' }}
-                                     itemStyle={{ color: '#fff', fontSize: '12px', fontWeight: 'bold' }}
-                                />
-                            </RePieChart>
-                        </ResponsiveContainer>
+                                    <Pie
+                                        data={MOCK_CATEGORY_DATA}
+                                        cx="50%"
+                                        cy="50%"
+                                        innerRadius={60}
+                                        outerRadius={80}
+                                        paddingAngle={5}
+                                        dataKey="value"
+                                    >
+                                        {MOCK_CATEGORY_DATA.map((entry, index) => (
+                                            <Cell key={`cell-${index}`} fill={entry.color} />
+                                        ))}
+                                    </Pie>
+                                    <Tooltip
+                                        contentStyle={{ backgroundColor: '#0f172a', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px' }}
+                                        itemStyle={{ color: '#fff', fontSize: '12px', fontWeight: 'bold' }}
+                                    />
+                                </RePieChart>
+                            </ResponsiveContainer>
                         )}
                     </div>
 

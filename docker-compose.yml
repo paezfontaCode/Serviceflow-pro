@@ -2,7 +2,7 @@ services:
   db:
     image: postgres:16-alpine
     container_name: serviceflow-db
-    restart: always
+    restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
@@ -11,27 +11,93 @@ services:
       - postgres_data:/var/lib/postgresql/data
     ports:
       - "5432:5432"
+    networks:
+      - serviceflow-network
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+  redis:
+    image: redis:7-alpine
+    container_name: serviceflow-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    networks:
+      - serviceflow-network
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   backend:
     build: ./backend
     container_name: serviceflow-backend
-    restart: always
+    restart: unless-stopped
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-serviceflow}
-      SECRET_KEY: ${SECRET_KEY:-your-secret-key-here}
+      SECRET_KEY: ${SECRET_KEY:-development-secret-key-min-32-chars}
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://localhost:5173,http://localhost:3000,http://localhost}
+      ENVIRONMENT: ${ENVIRONMENT:-development}
+      PROJECT_NAME: ${PROJECT_NAME:-Serviceflow Pro ERP}
+      API_V1_STR: ${API_V1_STR:-/api/v1}
+      ALGORITHM: ${ALGORITHM:-HS256}
+      ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES:-10080}
+      # New production settings
+      RATE_LIMIT_PER_MINUTE: ${RATE_LIMIT_PER_MINUTE:-60}
+      LOGIN_RATE_LIMIT: ${LOGIN_RATE_LIMIT:-5/minute}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      DEBUG: ${DEBUG:-true}
+      # Optional: Sentry DSN for error monitoring
+      SENTRY_DSN: ${SENTRY_DSN:-}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
     depends_on:
-      - db
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./backend:/app
     ports:
       - "8000:8000"
+    networks:
+      - serviceflow-network
+    healthcheck:
+      test: [ "CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/')" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
 
   frontend:
-    build: ./frontend
+    build:
+      context: ./frontend
+      args:
+        VITE_API_URL: ${VITE_API_URL:-http://localhost:8000/api/v1}
     container_name: serviceflow-frontend
-    restart: always
+    restart: unless-stopped
     ports:
       - "80:80"
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
+    networks:
+      - serviceflow-network
+    healthcheck:
+      test: [ "CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost/" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
 
 volumes:
   postgres_data:
+    name: serviceflow_postgres_data
+
+networks:
+  serviceflow-network:
+    name: serviceflow_network
+    driver: bridge

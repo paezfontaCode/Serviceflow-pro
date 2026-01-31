@@ -9,3 +9,4 @@ from .repair import Repair, RepairItem, RepairLog
 from .notification import Notification
 from .purchase import Supplier, PurchaseOrder, PurchaseItem
 from .settings import SystemSetting
+from .audit import AuditLog

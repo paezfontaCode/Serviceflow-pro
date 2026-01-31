@@ -67,7 +67,18 @@ def create_product(
 
     # Extract inventory_quantity separately as it's not a field on the Product model
     product_data = product_in.model_dump()
-    inventory_quantity = product_data.pop("inventory_quantity", 0)
+    
+    # Logic to determine initial stock: 
+    # 1. 'inventory_quantity' (from frontend payload)
+    # 2. 'initial_stock' (from schema default or direct use)
+    inv_qty = product_data.pop("inventory_quantity", None)
+    init_stock = product_data.pop("initial_stock", 0)
+    
+    # Use inventory_quantity if provided (and not None), otherwise fallback to initial_stock
+    # Note: frontend sends 0 when empty/default, which is falsy but valid stock. 
+    # But product_in default for inventory_quantity is None.
+    inventory_quantity = inv_qty if inv_qty is not None else init_stock
+        
     print(f"DEBUG: product_data keys after pop: {product_data.keys()}")
 
     # Create product
@@ -76,6 +87,10 @@ def create_product(
              category = db.query(Category).filter(Category.id == product_in.category_id).first()
              if not category:
                  raise HTTPException(status_code=400, detail="La categoría seleccionada no existe.")
+
+        # Ensure empty SKU is treated as None to avoid unique constraint violation on empty strings
+        if "sku" in product_data and not product_data["sku"]:
+            product_data["sku"] = None
 
         db_product = Product(**product_data)
         db.add(db_product)
@@ -101,9 +116,13 @@ def create_product(
 @router.get("/categories", response_model=List[CategoryRead])
 def read_categories(
     db: Session = Depends(get_db),
-    current_user = Depends(get_current_active_user)
+    current_user = Depends(get_current_active_user),
+    type: str = "physical" # Filter by type, default to physical for inventory context
 ):
-    return db.query(Category).filter(Category.is_active == True).all()
+    query = db.query(Category).filter(Category.is_active == True)
+    if type:
+        query = query.filter(Category.type == type)
+    return query.all()
 
 @router.get("/products/{product_id}", response_model=ProductRead)
 def read_product(

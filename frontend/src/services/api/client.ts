@@ -1,7 +1,7 @@
 import axios from "axios";
 import { useAuthStore } from "@/store/authStore";
 
-const API_URL = import.meta.env.VITE_API_URL || "/api/v1";
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000/api/v1";
 
 export const client = axios.create({
   baseURL: API_URL,
@@ -67,14 +67,14 @@ client.interceptors.response.use(
 
       try {
         const { data } = await axios.post(`${API_URL}/auth/refresh`, {
-            refresh_token: refreshToken
+          refresh_token: refreshToken
         }); // Assuming backend refresh endpoint works this way
 
         useAuthStore.getState().setAuth(data.access_token, data.refresh_token, useAuthStore.getState().user!); // Requires user to be present, might need adjustment if refresh doesn't return user
-        
+
         client.defaults.headers.common.Authorization = `Bearer ${data.access_token}`;
         processQueue(null, data.access_token);
-        
+
         return client(originalRequest);
       } catch (refreshError) {
         processQueue(refreshError, null);
