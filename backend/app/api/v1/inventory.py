@@ -387,87 +387,97 @@ async def import_products_csv(
             row = {k: v for k, v in row.items() if k}
             
             sku = row.get("sku")
+            # Normalize empty SKU to None to avoid unique constraint violations on empty strings
+            if sku is not None:
+                sku = sku.strip()
+                if not sku:
+                    sku = None
+            
             name = row.get("name")
             
             # Skip empty rows
             if not name and not sku:
                 continue
                 
-            # Helper to safely parse numbers
-            def parse_decimal(val):
-                if not val: return Decimal(0)
-                return Decimal(str(val).replace(',', '.').strip())
+            # Use nested transaction to allow continuing on single row failure
+            with db.begin_nested():
+                # Helper to safely parse numbers
+                def parse_decimal(val):
+                    if not val: return Decimal(0)
+                    return Decimal(str(val).replace(',', '.').strip())
 
-            def parse_int(val):
-                if not val: return 0
-                try:
-                    return int(float(str(val).replace(',', '.').strip()))
-                except ValueError:
-                    return 0
+                def parse_int(val):
+                    if not val: return 0
+                    try:
+                        return int(float(str(val).replace(',', '.').strip()))
+                    except ValueError:
+                        return 0
 
-            price_usd = parse_decimal(row.get("price_usd"))
-            cost_usd = parse_decimal(row.get("cost_usd"))
-            quantity = parse_int(row.get("quantity"))
-            
-            # Find category if name provided
-            category_id = None
-            cat_name = row.get("category")
-            if cat_name:
-                cat_name = cat_name.strip()
-                category = db.query(Category).filter(Category.name.ilike(cat_name)).first()
-                if not category:
-                    category = Category(name=cat_name)
-                    db.add(category)
-                    db.flush()
-                category_id = category.id
-
-            # Check if SKU exists
-            existing_product = None
-            if sku:
-                existing_product = db.query(Product).filter(Product.sku == sku).first()
-            
-            if existing_product:
-                # Update
-                existing_product.name = name if name else existing_product.name
-                existing_product.price_usd = price_usd
-                existing_product.cost_usd = cost_usd
-                existing_product.brand = row.get("brand", existing_product.brand)
-                existing_product.model = row.get("model", existing_product.model)
-                if category_id:
-                    existing_product.category_id = category_id
-                existing_product.is_active = True
+                price_usd = parse_decimal(row.get("price_usd"))
+                cost_usd = parse_decimal(row.get("cost_usd"))
+                quantity = parse_int(row.get("quantity"))
                 
-                # Update inventory
-                inventory = db.query(Inventory).filter(Inventory.product_id == existing_product.id).first()
-                if inventory:
-                    inventory.quantity = quantity
-                stats["updated"] += 1
-            else:
-                if not name: # Check name again for creation
-                    stats["errors"] += 1
-                    continue
+                # Find category if name provided
+                category_id = None
+                cat_name = row.get("category")
+                if cat_name:
+                    cat_name = cat_name.strip()
+                    category = db.query(Category).filter(Category.name.ilike(cat_name)).first()
+                    if not category:
+                        category = Category(name=cat_name)
+                        db.add(category)
+                        db.flush()
+                    category_id = category.id
+
+                # Check if SKU exists
+                existing_product = None
+                if sku:
+                    existing_product = db.query(Product).filter(Product.sku == sku).first()
+                
+                if existing_product:
+                    # Update
+                    existing_product.name = name if name else existing_product.name
+                    existing_product.price_usd = price_usd
+                    existing_product.cost_usd = cost_usd
+                    existing_product.brand = row.get("brand", existing_product.brand)
+                    existing_product.model = row.get("model", existing_product.model)
+                    if category_id:
+                        existing_product.category_id = category_id
+                    existing_product.is_active = True
                     
-                # Create
-                new_product = Product(
-                    sku=sku,
-                    name=name,
-                    price_usd=price_usd,
-                    cost_usd=cost_usd,
-                    brand=row.get("brand"),
-                    model=row.get("model"),
-                    category_id=category_id
-                )
-                db.add(new_product)
-                db.flush()
-                
-                # Create inventory
-                new_inventory = Inventory(product_id=new_product.id, quantity=quantity)
-                db.add(new_inventory)
-                stats["created"] += 1
+                    # Update inventory
+                    inventory = db.query(Inventory).filter(Inventory.product_id == existing_product.id).first()
+                    if inventory:
+                        inventory.quantity = quantity
+                    stats["updated"] += 1
+                else:
+                    if not name: # Check name again for creation
+                        stats["errors"] += 1
+                        continue
+                        
+                    # Create
+                    new_product = Product(
+                        sku=sku,
+                        name=name,
+                        price_usd=price_usd,
+                        cost_usd=cost_usd,
+                        brand=row.get("brand"),
+                        model=row.get("model"),
+                        category_id=category_id
+                    )
+                    db.add(new_product)
+                    db.flush()
+                    
+                    # Create inventory
+                    new_inventory = Inventory(product_id=new_product.id, quantity=quantity)
+                    db.add(new_inventory)
+                    stats["created"] += 1
                 
         except Exception as e:
             print(f"Error importing row {row}: {e}")
             stats["errors"] += 1
+            # Explicitly rollback just in case nested transaction didn't catch everything
+            db.rollback()
             continue
             
     db.commit()
