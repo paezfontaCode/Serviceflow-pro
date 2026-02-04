@@ -83,11 +83,11 @@ def get_recent_activity(
     Retorna las últimas actividades del sistema para el dashboard.
     Incluye: ventas, reparaciones recibidas, clientes nuevos y alertas de stock.
     """
-    from datetime import datetime, timedelta
+    from datetime import datetime, timedelta, timezone
     from ...models.inventory import Inventory
     
     activities = []
-    now = datetime.now()
+    now = datetime.now(timezone.utc)
     
     def time_ago(dt):
         """Calcula tiempo transcurrido en formato legible."""
