@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from decimal import Decimal
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -89,7 +89,7 @@ def open_cash_session(
         )
     
     # Generate session code: CAJA-YYYYMMDD-USERID-RAND
-    date_str = datetime.now().strftime("%Y%m%d")
+    date_str = datetime.now(timezone.utc).strftime("%Y%m%d")
     import random
     rand_str = ''.join(random.choices("ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789", k=4))
     session_code = f"CAJA-{date_str}-{current_user.id}-{rand_str}"
@@ -219,7 +219,7 @@ def close_cash_session(
     db_session.overage_ves = overage_ves
     
     db_session.status = "closed"
-    db_session.closed_at = datetime.now()
+    db_session.closed_at = datetime.now(timezone.utc)
     if session_in.notes:
         db_session.notes = (db_session.notes or "") + " | Cierre: " + session_in.notes
         
@@ -340,7 +340,7 @@ def register_payment(
     
     # Update account
     account.paid_amount = (account.paid_amount or 0) + payment_in.amount_usd
-    account.paid_at = datetime.now()
+    account.paid_at = datetime.now(timezone.utc)
     if account.paid_amount >= account.total_amount:
         account.status = "paid"
     else:

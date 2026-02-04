@@ -3,7 +3,7 @@ Standardized PDF Generation Utility for Serviceflow Pro using ReportLab.
 Handles headers, footers, and common table styles for all reports.
 """
 import io
-from datetime import datetime
+from datetime import datetime, timezone
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import letter
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, Image
@@ -15,7 +15,7 @@ from sqlalchemy.orm import Session
 class PDFGenerator:
     def __init__(self, filename_prefix: str = "report"):
         self.styles = getSampleStyleSheet()
-        self.filename = f"{filename_prefix}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
+        self.filename = f"{filename_prefix}_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}.pdf"
         
         # Custom Styles
         self.header_style = ParagraphStyle(
@@ -69,7 +69,7 @@ class PDFGenerator:
             elements.append(Paragraph(f"Dirección: {info['address']}", self.styles["Normal"]))
             
         elements.append(Spacer(1, 0.2 * inch))
-        elements.append(Paragraph(f"Fecha de Generación: {datetime.now().strftime('%d/%m/%Y %H:%M')}", self.styles["Normal"]))
+        elements.append(Paragraph(f"Fecha de Generación: {datetime.now(timezone.utc).strftime('%d/%m/%Y %H:%M')}", self.styles["Normal"]))
         elements.append(Spacer(1, 0.3 * inch))
         
         return elements

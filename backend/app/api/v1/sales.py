@@ -12,12 +12,11 @@ from ...models.finance import ExchangeRate, CashSession, Payment, CashTransactio
 from ...models.repair import Repair, RepairLog
 from ...schemas.sale import SaleCreate, SaleRead, SaleReturnCreate, SaleReturnRead
 from ..deps import get_current_active_user
-from datetime import date, timedelta
+from datetime import date, timedelta, datetime, timezone
 from ...models.finance import AccountReceivable
 from ...models.customer import Customer
 from ...models.sale_repair import SaleRepair
 from ...core.utils import calculate_warranty_expiration
-from datetime import datetime
 
 router = APIRouter(tags=["sales"])
 
@@ -206,8 +205,8 @@ def create_sale(
             # Trigger Delivery and Warranty IF Fully Paid via this transaction
             if repair.paid_amount_usd >= total_cost and total_cost > 0:
                 repair.status = "delivered"
-                repair.delivered_at = datetime.now()
-                repair.warranty_expiration = calculate_warranty_expiration(datetime.now(), 7)
+                repair.delivered_at = datetime.now(timezone.utc)
+                repair.warranty_expiration = calculate_warranty_expiration(datetime.now(timezone.utc), 7)
                 
                 log = RepairLog(
                     repair_id=repair.id,

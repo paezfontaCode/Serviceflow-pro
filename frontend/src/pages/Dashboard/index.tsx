@@ -119,10 +119,13 @@ export default function Dashboard() {
             </select>
           </div>
 
-          <div className="h-[350px] w-full min-h-[350px] relative">
+          <div className="h-[350px] w-full relative">
             {isMounted && (
-              <ResponsiveContainer width="100%" height="100%" debounce={50}>
-                <AreaChart data={cashflow || []}>
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart
+                  data={cashflow || []}
+                  margin={{ top: 10, right: 30, left: 0, bottom: 0 }}
+                >
                   <defs>
                     <linearGradient id="colorSales" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="5%" stopColor="#6366f1" stopOpacity={0.3} />
@@ -130,14 +133,42 @@ export default function Dashboard() {
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255,255,255,0.05)" />
-                  <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 12 }} />
-                  <YAxis axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 12 }} />
+                  <XAxis
+                    dataKey="name"
+                    axisLine={false}
+                    tickLine={false}
+                    tick={{ fill: '#64748b', fontSize: 12 }}
+                  />
+                  <YAxis
+                    axisLine={false}
+                    tickLine={false}
+                    tick={{ fill: '#64748b', fontSize: 12 }}
+                  />
                   <Tooltip
-                    contentStyle={{ backgroundColor: '#0f172a', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px' }}
+                    contentStyle={{
+                      backgroundColor: '#0f172a',
+                      border: '1px solid rgba(255,255,255,0.1)',
+                      borderRadius: '12px'
+                    }}
                     itemStyle={{ color: '#fff', fontSize: '12px', fontWeight: 'bold' }}
                   />
-                  <Area type="monotone" dataKey="ingresos" name="Ingresos" stroke="#6366f1" strokeWidth={3} fillOpacity={1} fill="url(#colorSales)" />
-                  <Area type="monotone" dataKey="egresos" name="Egresos" stroke="#ec4899" strokeWidth={3} fillOpacity={0} />
+                  <Area
+                    type="monotone"
+                    dataKey="ingresos"
+                    name="Ingresos"
+                    stroke="#6366f1"
+                    strokeWidth={3}
+                    fillOpacity={1}
+                    fill="url(#colorSales)"
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey="egresos"
+                    name="Egresos"
+                    stroke="#ec4899"
+                    strokeWidth={3}
+                    fillOpacity={0}
+                  />
                 </AreaChart>
               </ResponsiveContainer>
             )}

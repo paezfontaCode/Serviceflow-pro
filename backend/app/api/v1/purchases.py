@@ -1,7 +1,7 @@
 from typing import List
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from datetime import datetime
+from datetime import datetime, timezone
 from decimal import Decimal
 
 from ...core.database import get_db
@@ -246,7 +246,7 @@ def receive_purchase(
         # Let's LEAVE product price alone for now to avoid accidental price changes without user approval
         
     purchase.status = "received"
-    purchase.received_date = datetime.now()
+    purchase.received_date = datetime.now(timezone.utc)
     
     # Create Accounts Payable (AP)
     from ...models.finance import AccountsPayable

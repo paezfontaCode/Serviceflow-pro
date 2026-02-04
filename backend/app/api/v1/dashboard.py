@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from sqlalchemy import func
-from datetime import date, timedelta
+from datetime import date, timedelta, datetime, timezone
 from ...core.database import get_db
 from ...models.sale import Sale
 from ...models.repair import Repair
