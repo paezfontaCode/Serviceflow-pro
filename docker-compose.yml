@@ -6,7 +6,7 @@ services:
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
-      POSTGRES_DB: ${POSTGRES_DB:-serviceflow}
+      POSTGRES_DB: ${POSTGRES_DB:-serviceflow_db}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     ports:
@@ -38,7 +38,7 @@ services:
     container_name: serviceflow-backend
     restart: unless-stopped
     environment:
-      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-serviceflow}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-serviceflow_db}
       SECRET_KEY: ${SECRET_KEY:-development-secret-key-min-32-chars}
       ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://localhost:5173,http://localhost:3000,http://localhost,http://192.168.1.104}
       ENVIRONMENT: ${ENVIRONMENT:-development}
