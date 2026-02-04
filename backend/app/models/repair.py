@@ -51,6 +51,15 @@ class Repair(Base):
         return sum((item.unit_cost_usd or 0) * item.quantity for item in self.items)
 
     @property
+    def total_cost_usd(self):
+        """Unified cost: final_cost > estimated_cost > (labor + parts)"""
+        if self.final_cost_usd is not None and self.final_cost_usd > 0:
+            return self.final_cost_usd
+        if self.estimated_cost_usd is not None and self.estimated_cost_usd > 0:
+            return self.estimated_cost_usd
+        return (self.labor_cost_usd or 0) + (self.parts_cost_usd or 0)
+
+    @property
     def customer_name(self):
         return self.customer.name if self.customer else None
 

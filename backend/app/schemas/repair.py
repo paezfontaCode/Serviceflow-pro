@@ -73,6 +73,7 @@ class RepairRead(RepairBase):
     final_cost_usd: Optional[Decimal] = None
     paid_amount_usd: Decimal
     parts_cost_usd: Optional[Decimal] = None
+    total_cost_usd: Optional[Decimal] = None
     customer_name: Optional[str] = None
     customer_dni: Optional[str] = None
     created_at: datetime

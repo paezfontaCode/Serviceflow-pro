@@ -22,7 +22,7 @@ class PDFGenerator:
             'Header',
             parent=self.styles['Heading1'],
             fontSize=16,
-            textColor=colors.hexColor("#1a365d"),
+            textColor=colors.HexColor("#1a365d"),
             spaceAfter=5
         )
         self.subheader_style = ParagraphStyle(
@@ -77,7 +77,7 @@ class PDFGenerator:
     def get_table_style(self):
         """Standard styling for report tables."""
         return TableStyle([
-            ('BACKGROUND', (0, 0), (-1, 0), colors.hexColor("#2d3748")),
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor("#2d3748")),
             ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
             ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
             ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),

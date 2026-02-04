@@ -77,10 +77,10 @@ def create_sale(
                     if not repair:
                         raise HTTPException(status_code=404, detail=f"Reparación #{repair_id} no encontrada")
                     
-                    # Calcular saldo pendiente
-                    final_cost = Decimal(str(repair.final_cost_usd or repair.estimated_cost_usd or 0))
+                    # Calcular saldo pendiente usando la propiedad unificada
+                    total_cost = Decimal(str(repair.total_cost_usd or 0))
                     paid_amount = Decimal(str(repair.paid_amount_usd or 0))
-                    remaining = final_cost - paid_amount
+                    remaining = total_cost - paid_amount
                     
                     if remaining > 0:
                         repair_total_usd += remaining
@@ -175,9 +175,9 @@ def create_sale(
 
         # 10. Actualizar reparaciones: marcar como entregadas y registrar pago
         for repair in processed_repairs:
-            final_cost = Decimal(str(repair.final_cost_usd or repair.estimated_cost_usd or 0))
+            total_cost = Decimal(str(repair.total_cost_usd or 0))
             paid_before = Decimal(str(repair.paid_amount_usd or 0))
-            remaining = final_cost - paid_before
+            remaining = total_cost - paid_before
             
             old_status = repair.status
             
@@ -204,8 +204,7 @@ def create_sale(
                 db.add(sale_repair_link)
 
             # Trigger Delivery and Warranty IF Fully Paid via this transaction
-            # User Rule: "estado DELIVERED solo debe activarse automáticamente cuando el total_paid iguale o supere el costo final Y se registre el movimiento de salida en el POS"
-            if repair.paid_amount_usd >= final_cost:
+            if repair.paid_amount_usd >= total_cost and total_cost > 0:
                 repair.status = "delivered"
                 repair.delivered_at = datetime.now()
                 repair.warranty_expiration = calculate_warranty_expiration(datetime.now(), 7)

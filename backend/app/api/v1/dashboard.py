@@ -127,7 +127,7 @@ def get_recent_activity(
     ).order_by(Repair.created_at.desc()).limit(5).all()
     
     for repair in recent_repairs:
-        device = f"{repair.device_brand or ''} {repair.device_model or ''}".strip() or "Equipo"
+        device = repair.device_model or "Equipo"
         activities.append({
             "type": "repair",
             "icon": "Wrench",

@@ -338,8 +338,8 @@ def export_repairs_csv(
         total_cost = (r.labor_cost_usd or 0) + (r.parts_cost_usd or 0)
         writer.writerow([
             r.id, r.created_at.strftime("%Y-%m-%d %H:%M:%S"),
-            customer_name, r.equipment or "", r.brand or "",
-            r.model or "", r.status,
+            customer_name, r.device_model or "", "",
+            "", r.status,
             float(r.labor_cost_usd or 0), float(r.parts_cost_usd or 0),
             float(total_cost), float(r.paid_amount_usd or 0)
         ])
@@ -397,7 +397,7 @@ def get_repair_receipt(
 
     # Costs
     elements.append(Paragraph("RESUMEN DE COSTOS", pdf.styles['Heading3']))
-    total = (repair.labor_cost_usd or 0) + (repair.parts_cost_usd or 0)
+    total = repair.total_cost_usd or 0
     costs_data = [
         ["Mano de Obra:", f"${repair.labor_cost_usd or 0}"],
         ["Repuestos:", f"${repair.parts_cost_usd or 0}"],
@@ -432,7 +432,7 @@ def export_repairs_pdf(
     
     data = [["ID", "Fecha", "Cliente", "Equipo", "Estado", "Total"]]
     for r in repairs:
-        total = (r.labor_cost_usd or 0) + (r.parts_cost_usd or 0)
+        total = r.total_cost_usd or 0
         data.append([
             str(r.id),
             r.created_at.strftime("%d/%m/%Y"),
