@@ -36,5 +36,30 @@ export const reportService = {
       responseType: format === 'json' ? 'json' : 'blob'
     });
     return response.data;
+  },
+
+  getDashboardSummary: async () => {
+    const { data } = await client.get('/reports/summary');
+    return data;
+  },
+
+  getMonthlySales: async () => {
+    const { data } = await client.get('/reports/monthly-sales');
+    return data;
+  },
+
+  getCategoryDistribution: async () => {
+    const { data } = await client.get('/reports/category-distribution');
+    return data;
+  },
+
+  getTopProducts: async (limit: number = 5) => {
+    const { data } = await client.get(`/reports/top-products?limit=${limit}`);
+    return data;
+  },
+
+  getTechnicianPerformance: async () => {
+    const { data } = await client.get('/reports/technician-performance');
+    return data;
   }
 };

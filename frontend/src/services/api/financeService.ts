@@ -89,5 +89,20 @@ export const financeService = {
   getCashflowHistory: async (days: number = 7) => {
     const { data } = await client.get<CashflowItem[]>(`finance/cashflow?days=${days}`);
     return data;
+  },
+
+  getRecentActivity: async (limit: number = 10) => {
+    const { data } = await client.get<ActivityItem[]>(`dashboard/recent-activity?limit=${limit}`);
+    return data;
   }
 };
+
+export interface ActivityItem {
+  type: 'sale' | 'repair' | 'customer' | 'alert';
+  icon: string;
+  title: string;
+  description: string;
+  time: string;
+  timestamp: string;
+  color: 'emerald' | 'primary' | 'blue' | 'amber';
+}

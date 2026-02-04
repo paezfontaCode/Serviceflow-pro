@@ -5,7 +5,6 @@ import {
     DollarSign, Wrench, ShoppingCart,
     Calendar, Tag, MoreVertical, CreditCard, Smartphone, History,
     ArrowUpRight,
-    Download,
     FileText,
     FileSpreadsheet
 } from 'lucide-react';

@@ -22,3 +22,14 @@ postgres_data/
 # Otros
 .DS_Store
 *.log
+
+# Testing
+*.db
+test.db
+.pytest_cache/
+htmlcov/
+.coverage
+
+# Archivos obsoletos (no commitear)
+.env.localprod
+*.bak

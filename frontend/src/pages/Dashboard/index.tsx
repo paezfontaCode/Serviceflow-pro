@@ -21,15 +21,23 @@ import {
 import { useQuery } from '@tanstack/react-query';
 import { financeService } from '@/services/api/financeService';
 import { formatUSD, formatVES, formatExchangeRate } from '@/utils/currency';
+import { useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 
 // Chart data is now fetched from the API
 
 export default function Dashboard() {
+  const navigate = useNavigate();
   const [isMounted, setIsMounted] = useState(false);
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
   const { data: summary, isLoading } = useQuery({
     queryKey: ['financeSummary'],
     queryFn: financeService.getSummary,
+    refetchInterval: 5000,
+    refetchOnWindowFocus: true,
   });
 
   const { data: cashflow } = useQuery({
@@ -37,9 +45,11 @@ export default function Dashboard() {
     queryFn: () => financeService.getCashflowHistory(7),
   });
 
-  useEffect(() => {
-    setIsMounted(true);
-  }, []);
+  const { data: activity, isLoading: isLoadingActivity } = useQuery({
+    queryKey: ['recentActivity'],
+    queryFn: () => financeService.getRecentActivity(5),
+    refetchInterval: 30000 // Refrescar cada 30 segundos
+  });
 
   return (
     <div className="space-y-8 animate-fade-in">
@@ -135,43 +145,51 @@ export default function Dashboard() {
         </div>
 
         {/* Quick Actions / Activity */}
-        <div className="glass-card p-8 border-white/5 space-y-6">
+        <div className="glass-card p-8 border-white/5 space-y-6 flex flex-col">
           <h3 className="text-lg font-black text-white uppercase tracking-tight">Actividad Reciente</h3>
-          <div className="space-y-6">
-            <ActivityItem
-              icon={CheckCircle2}
-              title="Venta Finalizada"
-              time="Hace 5 min"
-              desc="Venta #4502 por $45.00"
-              color="text-emerald-400"
-              bg="bg-emerald-500/10"
-            />
-            <ActivityItem
-              icon={Wrench}
-              title="Equipo Recibido"
-              time="Hace 15 min"
-              desc="iPhone 13 - Cambio de pantalla"
-              color="text-primary-400"
-              bg="bg-primary-500/10"
-            />
-            <ActivityItem
-              icon={AlertCircle}
-              title="Stock Bajo"
-              time="Hace 1 hora"
-              desc="Memoria RAM 8GB (Quedan 2)"
-              color="text-amber-400"
-              bg="bg-amber-500/10"
-            />
-            <ActivityItem
-              icon={Users}
-              title="Nuevo Cliente"
-              time="Hace 2 horas"
-              desc="Juan Perez - Registrado"
-              color="text-blue-400"
-              bg="bg-blue-500/10"
-            />
+
+          <div className="space-y-6 flex-1 overflow-y-auto min-h-[300px] pr-2 custom-scrollbar">
+            {isLoadingActivity ? (
+              <div className="flex flex-col items-center justify-center h-full gap-2 opacity-50">
+                <Loader2 className="animate-spin text-slate-500" />
+                <span className="text-xs font-bold text-slate-500 uppercase">Cargando...</span>
+              </div>
+            ) : activity && activity.length > 0 ? (
+              activity.map((item: any, idx: number) => (
+                <ActivityItem
+                  key={idx}
+                  icon={
+                    item.type === 'sale' ? CheckCircle2 :
+                      item.type === 'repair' ? Wrench :
+                        item.type === 'customer' ? Users : AlertCircle
+                  }
+                  title={item.title}
+                  time={item.time}
+                  desc={item.description}
+                  color={
+                    item.color === 'emerald' ? 'text-emerald-400' :
+                      item.color === 'primary' ? 'text-primary-400' :
+                        item.color === 'blue' ? 'text-blue-400' : 'text-amber-400'
+                  }
+                  bg={
+                    item.color === 'emerald' ? 'bg-emerald-500/10' :
+                      item.color === 'primary' ? 'bg-primary-500/10' :
+                        item.color === 'blue' ? 'bg-blue-500/10' : 'bg-amber-500/10'
+                  }
+                />
+              ))
+            ) : (
+              <div className="flex flex-col items-center justify-center h-full gap-2 opacity-30">
+                <Clock className="text-slate-500" size={32} />
+                <span className="text-xs font-bold text-slate-500 uppercase text-center">Sin actividad reciente</span>
+              </div>
+            )}
           </div>
-          <button className="w-full py-4 text-[10px] font-black uppercase text-slate-500 border border-dashed border-white/10 rounded-2xl hover:text-white hover:border-white/20 transition-all">
+
+          <button
+            onClick={() => navigate('/reports')}
+            className="w-full py-4 text-[10px] font-black uppercase text-slate-500 border border-dashed border-white/10 rounded-2xl hover:text-white hover:border-white/20 transition-all hover:bg-white/5 mt-auto"
+          >
             Ver Todo el Historial
           </button>
         </div>

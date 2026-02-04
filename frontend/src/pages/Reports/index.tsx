@@ -1,9 +1,15 @@
-TrendingDown,
+import {
+    TrendingDown,
     DollarSign,
     ShoppingBag,
     Wrench,
     FileText,
-    PieChart as PieChartIcon
+    PieChart as PieChartIcon,
+    BarChart3,
+    Calendar,
+    ChevronDown,
+    History,
+    TrendingUp
 } from 'lucide-react';
 import { reportService } from '@/services/api/reportService';
 import { toast } from 'sonner';
@@ -20,23 +26,7 @@ import {
     Pie
 } from 'recharts';
 import { useState, useEffect } from 'react';
-
-const MOCK_SALES_DATA = [
-    { name: 'Ene', sales: 4000 },
-    { name: 'Feb', sales: 3000 },
-    { name: 'Mar', sales: 2000 },
-    { name: 'Abr', sales: 2780 },
-    { name: 'May', sales: 1890 },
-    { name: 'Jun', sales: 2390 },
-    { name: 'Jul', sales: 3490 },
-];
-
-const MOCK_CATEGORY_DATA = [
-    { name: 'Electrónica', value: 400, color: '#6366f1' },
-    { name: 'Repuestos', value: 300, color: '#ec4899' },
-    { name: 'Servicios', value: 300, color: '#f59e0b' },
-    { name: 'Accesorios', value: 200, color: '#10b981' },
-];
+import { useQuery } from '@tanstack/react-query';
 
 export default function Reports() {
     const [isMounted, setIsMounted] = useState(false);
@@ -44,6 +34,45 @@ export default function Reports() {
     useEffect(() => {
         setIsMounted(true);
     }, []);
+
+    const { data: summary } = useQuery({
+        queryKey: ['reports', 'summary'],
+        queryFn: reportService.getDashboardSummary
+    });
+
+    const { data: monthlySales } = useQuery({
+        queryKey: ['reports', 'monthly'],
+        queryFn: reportService.getMonthlySales
+    });
+
+    const { data: categoryData } = useQuery({
+        queryKey: ['reports', 'categories'],
+        queryFn: reportService.getCategoryDistribution
+    });
+
+    const { data: topProducts } = useQuery({
+        queryKey: ['reports', 'top-products'],
+        queryFn: () => reportService.getTopProducts(5)
+    });
+
+    const { data: techStats } = useQuery({
+        queryKey: ['reports', 'tech-performance'],
+        queryFn: reportService.getTechnicianPerformance
+    });
+
+    // Default values to prevent crashes if data is loading
+    const kpiData = summary || [
+        { label: "Ventas Totales", value: 0, trend: "0%", icon: "DollarSign" },
+        { label: "Órdenes", value: "0", trend: "0%", icon: "ShoppingBag" },
+        { label: "Servicios", value: "0", trend: "0%", icon: "Wrench" },
+        { label: "Ticket Promedio", value: 0, trend: "0%", icon: "TrendingUp" }
+    ];
+
+    const chartData = monthlySales || [];
+    const catData = categoryData || [];
+    const products = topProducts || [];
+    const techPerformance = techStats || [];
+
     return (
         <div className="space-y-8 animate-fade-in pb-12">
             {/* Header */}
@@ -56,12 +85,12 @@ export default function Reports() {
                 <div className="flex items-center gap-3">
                     <button className="glass px-6 py-3 rounded-2xl border-white/5 text-slate-400 hover:text-white transition-all text-sm font-bold flex items-center gap-2">
                         <Calendar size={18} />
-                        Últimos 30 días
+                        Este Mes
                         <ChevronDown size={16} />
                     </button>
                     <button
                         onClick={async () => {
-                            const start = '2025-01-01'; // Defaulting for demo, could be picked from state
+                            const start = '2025-01-01';
                             const end = new Date().toISOString().split('T')[0];
                             try {
                                 toast.info('Generando reporte P&G...');
@@ -94,30 +123,20 @@ export default function Reports() {
 
             {/* Top KPIs */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                <ReportKPI
-                    label="Ventas Totales"
-                    value="$12,450.00"
-                    trend="+15%"
-                    icon={DollarSign}
-                />
-                <ReportKPI
-                    label="Órdenes"
-                    value="142"
-                    trend="+8%"
-                    icon={ShoppingBag}
-                />
-                <ReportKPI
-                    label="Servicios"
-                    value="58"
-                    trend="+22%"
-                    icon={Wrench}
-                />
-                <ReportKPI
-                    label="Ticket Promedio"
-                    value="$87.60"
-                    trend="-3%"
-                    icon={TrendingUp}
-                />
+                {kpiData.map((kpi: any, index: number) => {
+                    const Icon = kpi.icon === 'DollarSign' ? DollarSign :
+                        kpi.icon === 'ShoppingBag' ? ShoppingBag :
+                            kpi.icon === 'Wrench' ? Wrench : TrendingUp;
+                    return (
+                        <ReportKPI
+                            key={index}
+                            label={kpi.label}
+                            value={typeof kpi.value === 'number' && kpi.icon === 'DollarSign' ? `$${kpi.value.toLocaleString()}` : kpi.value}
+                            trend={kpi.trend}
+                            icon={Icon}
+                        />
+                    );
+                })}
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -129,14 +148,14 @@ export default function Reports() {
                             Ingresos Mensuales
                         </h3>
                         <div className="flex gap-2">
-                            <span className="text-[10px] font-black text-slate-500 bg-white/5 px-3 py-1 rounded-full border border-white/5">2026</span>
+                            <span className="text-[10px] font-black text-slate-500 bg-white/5 px-3 py-1 rounded-full border border-white/5">{new Date().getFullYear()}</span>
                         </div>
                     </div>
 
                     <div className="h-[350px] w-full min-h-[350px] relative">
                         {isMounted && (
                             <ResponsiveContainer width="100%" height="100%" debounce={50}>
-                                <AreaChart data={MOCK_SALES_DATA}>
+                                <AreaChart data={chartData}>
                                     <defs>
                                         <linearGradient id="colorSales" x1="0" y1="0" x2="0" y2="1">
                                             <stop offset="5%" stopColor="#6366f1" stopOpacity={0.3} />
@@ -160,16 +179,16 @@ export default function Reports() {
                 {/* Categories Chart */}
                 <div className="glass-card p-8 border-white/5 space-y-8">
                     <h3 className="text-lg font-black text-white uppercase tracking-tight flex items-center gap-2">
-                        <PieChart className="text-secondary-400" size={20} />
+                        <PieChartIcon className="text-secondary-400" size={20} />
                         Ventas por Categoría
                     </h3>
 
                     <div className="h-[250px] w-full relative">
-                        {isMounted && (
+                        {isMounted && catData.length > 0 && (
                             <ResponsiveContainer width="100%" height="100%" debounce={50}>
                                 <RePieChart>
                                     <Pie
-                                        data={MOCK_CATEGORY_DATA}
+                                        data={catData}
                                         cx="50%"
                                         cy="50%"
                                         innerRadius={60}
@@ -177,7 +196,7 @@ export default function Reports() {
                                         paddingAngle={5}
                                         dataKey="value"
                                     >
-                                        {MOCK_CATEGORY_DATA.map((entry, index) => (
+                                        {catData.map((entry: any, index: number) => (
                                             <Cell key={`cell-${index}`} fill={entry.color} />
                                         ))}
                                     </Pie>
@@ -188,10 +207,15 @@ export default function Reports() {
                                 </RePieChart>
                             </ResponsiveContainer>
                         )}
+                        {catData.length === 0 && (
+                            <div className="flex items-center justify-center h-full text-slate-500 text-sm">
+                                No hay datos disponibles
+                            </div>
+                        )}
                     </div>
 
                     <div className="space-y-3">
-                        {MOCK_CATEGORY_DATA.map((item) => (
+                        {catData.map((item: any) => (
                             <div key={item.name} className="flex justify-between items-center">
                                 <div className="flex items-center gap-2">
                                     <div className="w-2 h-2 rounded-full" style={{ backgroundColor: item.color }}></div>
@@ -212,10 +236,15 @@ export default function Reports() {
                         <button className="text-[10px] font-bold text-primary-400 hover:text-primary-300 transition-colors uppercase tracking-widest">Ver Todo</button>
                     </div>
                     <div className="space-y-4">
-                        <TopItem label="iPhone 15 Pro Max" value="$4,500" count="3" />
-                        <TopItem label="Samsung S24 Ultra" value="$3,200" count="2" />
-                        <TopItem label="Pantalla MacBook Air" value="$1,800" count="5" />
-                        <TopItem label="Batería Generic X" value="$450" count="12" />
+                        {products.map((p: any, i: number) => (
+                            <TopItem
+                                key={i}
+                                label={p.label}
+                                value={`$${p.value}`}
+                                count={`${p.count} vendidos`}
+                            />
+                        ))}
+                        {products.length === 0 && <p className="text-slate-500 text-sm">No hay productos top aún.</p>}
                     </div>
                 </div>
 
@@ -225,9 +254,16 @@ export default function Reports() {
                         <button className="text-[10px] font-bold text-secondary-400 hover:text-secondary-300 transition-colors uppercase tracking-widest">Detalles</button>
                     </div>
                     <div className="space-y-4">
-                        <TopItem label="Reparaciones Completadas" value="45" count="92%" color="text-emerald-400" />
-                        <TopItem label="Tiempo Promedio" value="2.1 días" count="Rápido" color="text-blue-400" />
-                        <TopItem label="Garantías Reclamadas" value="2" count="1.5%" color="text-rose-400" />
+                        {techPerformance.map((item: any, i: number) => (
+                            <TopItem
+                                key={i}
+                                label={item.label}
+                                value={item.value}
+                                count={item.count}
+                                color={item.color}
+                            />
+                        ))}
+                        {techPerformance.length === 0 && <p className="text-slate-500 text-sm">No hay datos técnicos.</p>}
                     </div>
                 </div>
             </div>
@@ -236,15 +272,17 @@ export default function Reports() {
 }
 
 function ReportKPI({ label, value, trend, icon: Icon }: any) {
-    const isPositive = trend.startsWith('+');
+    // Un simple chequeo: si startsWith '-' es negativo.
+    const isNegative = trend.startsWith('-');
+
     return (
         <div className="glass-card p-6 border-white/5 relative overflow-hidden group">
             <div className="flex justify-between items-start">
                 <div className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center text-slate-500 group-hover:bg-primary-500/20 group-hover:text-primary-400 transition-all">
                     <Icon size={20} />
                 </div>
-                <div className={`flex items-center gap-1 text-[10px] font-black ${isPositive ? 'text-emerald-400' : 'text-rose-400'} px-2 py-1 rounded-lg bg-white/5`}>
-                    {isPositive ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
+                <div className={`flex items-center gap-1 text-[10px] font-black ${isNegative ? 'text-rose-400' : 'text-emerald-400'} px-2 py-1 rounded-lg bg-white/5`}>
+                    {isNegative ? <TrendingDown size={12} /> : <TrendingUp size={12} />}
                     {trend}
                 </div>
             </div>
@@ -261,7 +299,7 @@ function TopItem({ label, value, count, color }: any) {
         <div className="flex justify-between items-center p-3 rounded-xl hover:bg-white/5 transition-all border border-transparent hover:border-white/5">
             <div className="flex flex-col">
                 <span className="text-sm font-bold text-white">{label}</span>
-                <span className="text-[10px] text-slate-500 font-medium">{count} items</span>
+                <span className="text-[10px] text-slate-500 font-medium">{count}</span>
             </div>
             <span className={`text-sm font-black ${color || 'text-primary-400'}`}>{value}</span>
         </div>

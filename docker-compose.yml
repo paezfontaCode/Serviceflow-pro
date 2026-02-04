@@ -40,7 +40,7 @@ services:
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-serviceflow}
       SECRET_KEY: ${SECRET_KEY:-development-secret-key-min-32-chars}
-      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://localhost:5173,http://localhost:3000,http://localhost}
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://localhost:5173,http://localhost:3000,http://localhost,http://192.168.1.104}
       ENVIRONMENT: ${ENVIRONMENT:-development}
       PROJECT_NAME: ${PROJECT_NAME:-Serviceflow Pro ERP}
       API_V1_STR: ${API_V1_STR:-/api/v1}
@@ -76,7 +76,7 @@ services:
     build:
       context: ./frontend
       args:
-        VITE_API_URL: ${VITE_API_URL:-http://localhost:8000/api/v1}
+        VITE_API_URL: ${VITE_API_URL:-/api/v1}
     container_name: serviceflow-frontend
     restart: unless-stopped
     ports:

@@ -7,7 +7,7 @@ import {
   Smartphone,
   Calendar,
   ArrowUpRight,
-  loader2 as Loader2,
+  Loader2,
   Download,
   FileText,
   FileSpreadsheet

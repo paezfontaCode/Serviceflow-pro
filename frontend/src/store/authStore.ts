@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+import { persist, createJSONStorage } from 'zustand/middleware';
 
 interface User {
   id: number;
@@ -34,7 +34,8 @@ export const useAuthStore = create<AuthState>()(
       updateUser: (user) => set({ user }),
     }),
     {
-      name: 'serviceflow-auth', // unique name for localStorage
+      name: 'serviceflow-auth', // unique name for storage
+      storage: createJSONStorage(() => sessionStorage),
     }
   )
 );

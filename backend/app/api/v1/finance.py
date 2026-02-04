@@ -4,7 +4,7 @@ from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from ...core.database import get_db
-from ...models.finance import ExchangeRate, CashSession, CashTransaction
+from ...models.finance import ExchangeRate, CashSession, CashTransaction, Payment
 from ...schemas.finance import (
     ExchangeRateCreate, ExchangeRateRead, 
     CashSessionCreate, CashSessionRead, CashSessionClose
@@ -63,7 +63,7 @@ def get_current_rate(db: Session = Depends(get_db)):
     
     # Store in cache for 10 minutes
     # Using Pydantic's model_dump to ensure it is JSON serializable for the CacheService
-    rate_data = ExchangeRateRead.model_validate(rate).model_dump()
+    rate_data = ExchangeRateRead.model_validate(rate).model_dump(mode='json')
     cache.set("current_exchange_rate", rate_data, ttl=600)
     
     return rate
@@ -487,18 +487,12 @@ def get_finance_summary(
     cash_in_session_ves = Decimal(session.expected_amount_ves) if session else Decimal(0)
     
     # Exchange rate
-    rate = db.query(ExchangeRate).filter(ExchangeRate.is_active == True).first()
+    rate = db.query(ExchangeRate).filter(ExchangeRate.is_active == True).order_by(ExchangeRate.effective_date.desc(), ExchangeRate.id.desc()).first()
     exchange_rate = rate.rate if rate else Decimal(1)
     
     # Collections by method (Today)
-    collections_by_method = db.query(
-        CashTransaction.payment_method if hasattr(CashTransaction, 'payment_method') else Payment.payment_method,
-        func.sum(CashTransaction.amount_usd) if hasattr(CashTransaction, 'payment_method') else func.sum(Payment.amount_usd)
-    ).filter(
-        func.date(CashTransaction.created_at if hasattr(CashTransaction, 'payment_method') else Payment.created_at) == today
-    ).group_by(
-        CashTransaction.payment_method if hasattr(CashTransaction, 'payment_method') else Payment.payment_method
-    ).all()
+    # Collections logic - simplified to use Payment directly
+    # Previous complex query removed as it was causing issues and results were unused
     
     # Wait, let's fix the logic for collections. 
     # If the model doesn't have it, we use Payment which has it.

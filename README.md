@@ -72,24 +72,32 @@ src/
 
 ## 🚀 Instalación y Ejecución
 
-### Scripts Automatizados (Windows)
+### Opción 1: Docker (Recomendado)
 
-En la raíz del proyecto, ejecuta el script de inicio rápido:
+El proyecto está configurado para ejecutarse completamente en contenedores.
 
-```powershell
-./run_project.ps1
+```bash
+# Construir y levantar contenedores
+docker-compose up --build -d
+
+# Inicializar/Actualizar base de datos
+docker-compose exec backend python scripts/setup_database.py
 ```
 
-### Ejecución Manual
+### Opción 2: Ejecución Manual
 
 #### Backend
 
 ```bash
 cd backend
-python -m venv venv
-source venv/Scripts/activate
+python3 -m venv venv
+source venv/bin/activate  # En Windows: venv\Scripts\activate
 pip install -r requirements.txt
-python init_db.py
+
+# Configuración inicial de BD (Crea tablas, migra datos y crea admin)
+python scripts/setup_database.py
+
+# Iniciar servidor
 uvicorn app.main:app --reload
 ```
 
@@ -110,6 +118,7 @@ npm run dev
 - [x] **Gestión de Stock:** Bloqueo de stock en base de datos (`SELECT FOR UPDATE`).
 - [x] **Tickets Térmicos:** Generación dinámica de tickets HTML para impresión.
 - [x] **Dashboard Analítico:** KPIs de ventas y métricas de servicios en tiempo real.
+- [x] **Reportes Avanzados:** Módulo de reportes con gráficos de ventas, distribución de categorías y rendimiento técnico.
 
 ---
 
