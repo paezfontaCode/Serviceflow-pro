@@ -125,3 +125,25 @@ npm run dev
 ## 📜 Licencia
 
 Propiedad de **ServiceFlow Pro**. Todos los derechos reservados.
+
+## 🔑 Configuración de Base de Datos
+
+**Base de datos oficial:** `serviceflow_db`
+
+⚠️ **Importante:** Nunca modificar `POSTGRES_DB` en `.env`. Siempre usar:
+```env
+POSTGRES_DB=serviceflow_db
+```
+
+### Flujo de inicialización correcto
+```bash
+cp .env.example .env          # Copiar plantilla
+nano .env                     # Solo cambiar PASSWORD y SECRET_KEY
+docker-compose up -d --build  # Iniciar stack
+```
+
+### Limpieza de BD duplicadas
+Si existe una BD `serviceflow` vacía:
+```bash
+docker exec serviceflow-db psql -U serviceflow -d postgres -c "DROP DATABASE serviceflow;"
+```
