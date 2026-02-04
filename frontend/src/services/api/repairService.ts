@@ -83,5 +83,10 @@ export const repairService = {
     document.body.appendChild(link);
     link.click();
     link.remove();
+  },
+
+  sendWhatsApp: async (id: number) => {
+    const { data } = await client.post(`repairs/${id}/send-whatsapp`);
+    return data;
   }
 };

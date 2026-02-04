@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { formatExchangeRate, parseLocaleNumber } from '../../utils/currency';
 import {
     Globe,
@@ -16,7 +17,8 @@ import {
     Lock,
     AlertTriangle,
     RefreshCw,
-    Minus
+    Minus,
+    Languages
 } from 'lucide-react';
 import { settingsService, SystemSettings } from '../../services/api/settingsService';
 import { userService, User } from '../../services/api/userService';
@@ -25,9 +27,10 @@ import { client } from '../../services/api/client';
 import { toast } from 'sonner';
 import UserModal from './components/UserModal';
 
-type SettingsTab = 'business' | 'users' | 'notifications' | 'security' | 'currency' | 'database' | 'integrations' | 'danger';
+type SettingsTab = 'business' | 'users' | 'notifications' | 'security' | 'currency' | 'language' | 'database' | 'integrations' | 'danger';
 
 export default function Settings() {
+    const { t, i18n } = useTranslation();
     const [activeTab, setActiveTab] = useState<SettingsTab>('business');
     const [settings, setSettings] = useState<Partial<SystemSettings>>({});
     const [users, setUsers] = useState<User[]>([]);
@@ -514,6 +517,47 @@ export default function Settings() {
                         </div>
                     </div>
                 );
+            case 'language':
+                return (
+                    <div className="glass-card p-8 border-white/5 space-y-8">
+                        <SectionHeader icon={Languages} title={t('settings.language.title')} subtitle={t('settings.language.subtitle')} />
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div className="space-y-4">
+                                <h4 className="text-xs font-black text-white uppercase tracking-widest pl-2 border-l-2 border-primary-500">
+                                    {t('settings.language.select')}
+                                </h4>
+                                <div className="grid grid-cols-1 gap-3">
+                                    <button
+                                        onClick={() => i18n.changeLanguage('es')}
+                                        className={`flex items-center justify-between p-4 rounded-xl transition-all border ${i18n.language.startsWith('es')
+                                                ? 'bg-primary-500/10 border-primary-500 text-white shadow-glow-sm'
+                                                : 'bg-white/5 border-white/5 text-slate-400 hover:bg-white/10 hover:text-white'
+                                            }`}
+                                    >
+                                        <div className="flex items-center gap-3">
+                                            <span className="text-lg">🇪🇸</span>
+                                            <span className="text-sm font-bold">{t('settings.language.spanish')}</span>
+                                        </div>
+                                        {i18n.language.startsWith('es') && <div className="w-2 h-2 rounded-full bg-primary-500 shadow-glow-sm"></div>}
+                                    </button>
+                                    <button
+                                        onClick={() => i18n.changeLanguage('en')}
+                                        className={`flex items-center justify-between p-4 rounded-xl transition-all border ${i18n.language.startsWith('en')
+                                                ? 'bg-primary-500/10 border-primary-500 text-white shadow-glow-sm'
+                                                : 'bg-white/5 border-white/5 text-slate-400 hover:bg-white/10 hover:text-white'
+                                            }`}
+                                    >
+                                        <div className="flex items-center gap-3">
+                                            <span className="text-lg">🇺🇸</span>
+                                            <span className="text-sm font-bold">{t('settings.language.english')}</span>
+                                        </div>
+                                        {i18n.language.startsWith('en') && <div className="w-2 h-2 rounded-full bg-primary-500 shadow-glow-sm"></div>}
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                );
             default:
                 return null;
         }
@@ -544,8 +588,8 @@ export default function Settings() {
             {/* Header */}
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
                 <div className="space-y-1">
-                    <h2 className="text-3xl font-black text-white tracking-tight">Configuración del Sistema</h2>
-                    <p className="text-slate-500 font-medium">Gestiona las preferencias y políticas de la plataforma</p>
+                    <h2 className="text-3xl font-black text-white tracking-tight">{t('settings.title')}</h2>
+                    <p className="text-slate-500 font-medium">{t('settings.subtitle')}</p>
                 </div>
 
                 <button
@@ -590,6 +634,12 @@ export default function Settings() {
                         icon={Globe}
                         label="Moneda y Tasas"
                         onClick={() => setActiveTab('currency')}
+                    />
+                    <SettingsNav
+                        active={activeTab === 'language'}
+                        icon={Languages}
+                        label={t('settings.language.title')}
+                        onClick={() => setActiveTab('language')}
                     />
                     <SettingsNav
                         active={activeTab === 'database'}

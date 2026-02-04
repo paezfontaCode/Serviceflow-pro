@@ -1,0 +1,24 @@
+{
+    "sidebar": {
+        "dashboard": "Dashboard",
+        "inventory": "Inventory",
+        "repairs": "Repairs",
+        "sales": "POS / Sales",
+        "customers": "Customers",
+        "purchases": "Purchases",
+        "finance": "Finance",
+        "reports": "Reports",
+        "settings": "Settings"
+    },
+    "settings": {
+        "title": "System Settings",
+        "subtitle": "Manage platform preferences and policies",
+        "language": {
+            "title": "Language",
+            "subtitle": "Select system language",
+            "select": "Select Language",
+            "spanish": "Spanish",
+            "english": "English"
+        }
+    }
+}

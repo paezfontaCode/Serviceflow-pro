@@ -1,11 +1,11 @@
 import { useState, useEffect } from 'react';
-import { 
-    X, 
-    CreditCard, 
-    DollarSign, 
-    Wallet, 
-    ArrowRight, 
-    CheckCircle2, 
+import {
+    X,
+    CreditCard,
+    DollarSign,
+    Wallet,
+    ArrowRight,
+    CheckCircle2,
     AlertTriangle,
     Loader2,
     User,
@@ -23,6 +23,7 @@ import { SaleCreate } from '@/types/api';
 import { toast } from 'sonner';
 import { ticketService } from '@/services/ticketService';
 import CustomerQuickModal from '@/components/CustomerQuickModal';
+import WhatsAppButton from '@/components/WhatsAppButton';
 
 interface PaymentModalProps {
     isOpen: boolean;
@@ -30,27 +31,27 @@ interface PaymentModalProps {
 }
 
 export default function PaymentModal({ isOpen, onClose }: PaymentModalProps) {
-    const { 
-        items, 
-        currency, 
-        exchangeRateSnapshot, 
-        getTotalUSD, 
+    const {
+        items,
+        currency,
+        exchangeRateSnapshot,
+        getTotalUSD,
         getTotalVES,
         getProductItems,
         getRepairItems,
         selectedCustomerId,
         setSelectedCustomer,
-        clearCart 
+        clearCart
     } = useCartStore();
 
     const currentRate = useExchangeRateStore((state) => state.rate);
     const activeRate = exchangeRateSnapshot || currentRate;
-    
+
     const totalUSD = getTotalUSD();
     const totalVES = getTotalVES();
     const productItems = getProductItems();
     const repairItems = getRepairItems();
-    
+
     const [paymentMethod, setPaymentMethod] = useState<'cash' | 'card' | 'transfer' | 'mixed'>('cash');
     const [amountPaid, setAmountPaid] = useState<string>(
         currency === 'USD' ? totalUSD.toFixed(2) : totalVES.toFixed(2)
@@ -89,7 +90,7 @@ export default function PaymentModal({ isOpen, onClose }: PaymentModalProps) {
         setIsPartialPayment(hasPendingDebt);
     }, [hasPendingDebt]);
 
-    const filteredCustomers = customers?.filter(c => 
+    const filteredCustomers = customers?.filter(c =>
         c.name.toLowerCase().includes(customerSearch.toLowerCase()) ||
         c.phone?.includes(customerSearch) ||
         c.dni?.includes(customerSearch)
@@ -102,7 +103,7 @@ export default function PaymentModal({ isOpen, onClose }: PaymentModalProps) {
         }
 
         setIsProcessing(true);
-        
+
         try {
             const saleData: SaleCreate & { repair_ids?: number[], amount_paid?: number } = {
                 customer_id: selectedCustomerId || undefined,
@@ -121,7 +122,7 @@ export default function PaymentModal({ isOpen, onClose }: PaymentModalProps) {
 
             // Notify Success
             toast.success('Venta procesada exitosamente', {
-                description: hasPendingDebt 
+                description: hasPendingDebt
                     ? `Saldo pendiente: ${formatUSD(pendingDebt)}`
                     : `Tasa aplicada: ${activeRate} Bs.`,
                 icon: <CheckCircle2 className="text-emerald-500" />
@@ -129,8 +130,8 @@ export default function PaymentModal({ isOpen, onClose }: PaymentModalProps) {
 
             // Warranty Notification Logic
             if (repairItems.length > 0 && !hasPendingDebt) {
-                const hasScreenRepair = repairItems.some(i => 
-                    i.repair.description?.toLowerCase().includes('pantalla') || 
+                const hasScreenRepair = repairItems.some(i =>
+                    i.repair.description?.toLowerCase().includes('pantalla') ||
                     i.repair.model?.toLowerCase().includes('pantalla')
                 );
 
@@ -141,24 +142,50 @@ export default function PaymentModal({ isOpen, onClose }: PaymentModalProps) {
                 let added = 0;
                 while (added < warrantyDays) {
                     expDate.setDate(expDate.getDate() + 1);
-                    if (expDate.getDay() !== 0) added++; // Skip Sundays
+                    if (expDate.getDay() !== 0) added++;
                 }
 
                 setTimeout(() => {
-                    toast('¡Garantía Activada!', {
-                        description: `Garantía hasta ${expDate.toLocaleDateString()} (${warrantyDays} días hábiles).`,
-                        icon: <div className="p-2 bg-emerald-500/20 rounded-full"><AlertCircle className="text-emerald-500" size={18} /></div>,
-                        action: (hasScreenRepair && selectedCustomer && (selectedCustomer as any).phone) ? {
-                            label: 'WhatsApp',
-                            onClick: () => {
-                                const customer = selectedCustomer as any;
-                                const msg = `Hola ${customer.name}, su equipo ha sido entregado. Cuenta con 7 días hábiles de garantía (Vence: ${expDate.toLocaleDateString()}). Nota: La garantía de pantallas no cubre daños por humedad o presión.`;
-                                window.open(`https://wa.me/${customer.phone.replace(/\D/g, '')}?text=${encodeURIComponent(msg)}`, '_blank');
-                            }
-                        } : undefined,
+                    toast('¡Equipo Entregado!', {
+                        description: `Garantía hasta ${expDate.toLocaleDateString()}. ¿Enviar ticket por WhatsApp?`,
+                        icon: <div className="p-2 bg-emerald-500/20 rounded-full"><CheckCircle2 className="text-emerald-500" size={18} /></div>,
+                        component: (
+                            <WhatsAppButton
+                                phone={selectedCustomer?.phone}
+                                customerName={selectedCustomer?.name || 'Cliente'}
+                                orderId={response.id}
+                                status="DELIVERED"
+                                device={repairItems[0]?.repair.model || 'Equipo'}
+                                balance={0}
+                                mode="direct"
+                                type="sale"
+                                className="mt-2 w-full"
+                            />
+                        ),
                         duration: 10000,
                     });
                 }, 1000);
+            } else if (selectedCustomer && selectedCustomer.phone) {
+                // Regular sale without repairs
+                setTimeout(() => {
+                    toast('Venta Completada', {
+                        description: '¿Enviar comprobante digital?',
+                        component: (
+                            <WhatsAppButton
+                                phone={selectedCustomer.phone}
+                                customerName={selectedCustomer.name}
+                                orderId={response.id}
+                                status="PAID"
+                                device="Productos Diversos"
+                                balance={pendingDebt}
+                                mode="direct"
+                                type="sale"
+                                className="mt-2 w-full"
+                            />
+                        ),
+                        duration: 8000,
+                    });
+                }, 500);
             }
 
             // Auto-print option
@@ -166,13 +193,13 @@ export default function PaymentModal({ isOpen, onClose }: PaymentModalProps) {
             if (shouldPrint) {
                 ticketService.generateThermalTicket({
                     orderId: response.id,
-                    customerName: selectedCustomer 
-                        ? selectedCustomer.name 
+                    customerName: selectedCustomer
+                        ? selectedCustomer.name
                         : 'Cliente General',
-                    items: productItems.map(i => ({ 
-                        name: i.product.name, 
-                        quantity: i.quantity, 
-                        price: i.product.price_usd 
+                    items: productItems.map(i => ({
+                        name: i.product.name,
+                        quantity: i.quantity,
+                        price: i.product.price_usd
                     })),
                     services: repairItems.map(i => ({
                         id: i.repair.id,
@@ -226,7 +253,7 @@ export default function PaymentModal({ isOpen, onClose }: PaymentModalProps) {
                     {/* Summary (Left) */}
                     <div className="p-8 bg-slate-900/40 border-r border-white/5 max-h-[70vh] overflow-y-auto custom-scrollbar">
                         <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-6 underline decoration-primary-500/30 underline-offset-8 decoration-2">Resumen de Cobro</h3>
-                        
+
                         <div className="space-y-6">
                             <div className="space-y-1">
                                 <p className="text-sm text-slate-400">Total a Pagar</p>
@@ -302,7 +329,7 @@ export default function PaymentModal({ isOpen, onClose }: PaymentModalProps) {
                             <div className="flex gap-2">
                                 <div className="relative flex-1">
                                     <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" size={18} />
-                                    <input 
+                                    <input
                                         type="text"
                                         placeholder="Buscar cliente por nombre o teléfono..."
                                         className="w-full bg-slate-900/50 border border-slate-700 rounded-xl pl-12 pr-4 py-3 text-sm text-white focus:border-primary-500 outline-none transition-all"
@@ -315,7 +342,7 @@ export default function PaymentModal({ isOpen, onClose }: PaymentModalProps) {
                                         onFocus={() => setShowCustomerDropdown(true)}
                                     />
                                     {selectedCustomer && (
-                                        <button 
+                                        <button
                                             onClick={() => {
                                                 setSelectedCustomer(null);
                                                 setCustomerSearch('');
@@ -363,8 +390,8 @@ export default function PaymentModal({ isOpen, onClose }: PaymentModalProps) {
 
                         {/* Payment Method */}
                         <div className="space-y-3">
-                             <h3 className="text-xs font-bold text-white uppercase tracking-widest">Método de Pago</h3>
-                             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                            <h3 className="text-xs font-bold text-white uppercase tracking-widest">Método de Pago</h3>
+                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                                 {[
                                     { id: 'cash', label: 'Efectivo', icon: Wallet },
                                     { id: 'card', label: 'Punto/TDB', icon: CreditCard },
@@ -376,8 +403,8 @@ export default function PaymentModal({ isOpen, onClose }: PaymentModalProps) {
                                         onClick={() => setPaymentMethod(method.id as any)}
                                         className={`
                                             flex items-center gap-2 p-3 rounded-xl border transition-all duration-300
-                                            ${paymentMethod === method.id 
-                                                ? 'bg-primary-600/10 border-primary-500 text-primary-400 shadow-glow' 
+                                            ${paymentMethod === method.id
+                                                ? 'bg-primary-600/10 border-primary-500 text-primary-400 shadow-glow'
                                                 : 'bg-slate-900/50 border-white/5 text-slate-500 hover:border-white/10 hover:text-slate-300'}
                                         `}
                                     >
@@ -385,7 +412,7 @@ export default function PaymentModal({ isOpen, onClose }: PaymentModalProps) {
                                         <span className="text-[10px] font-black uppercase">{method.label}</span>
                                     </button>
                                 ))}
-                             </div>
+                            </div>
                         </div>
 
                         {/* Amount Paid */}
@@ -395,8 +422,8 @@ export default function PaymentModal({ isOpen, onClose }: PaymentModalProps) {
                                 <div className="absolute left-4 top-1/2 -translate-y-1/2 text-primary-500 group-focus-within:animate-pulse">
                                     {currency === 'USD' ? <DollarSign size={24} /> : <Wallet size={24} />}
                                 </div>
-                                <input 
-                                    type="number" 
+                                <input
+                                    type="number"
                                     step="0.01"
                                     value={amountPaid}
                                     onChange={(e) => setAmountPaid(e.target.value)}
@@ -415,7 +442,7 @@ export default function PaymentModal({ isOpen, onClose }: PaymentModalProps) {
                                         <p className="text-lg font-black text-finance">{formatUSD(pendingDebt)}</p>
                                     </div>
                                     <p className="text-xs text-slate-400">≈ {formatVES(pendingDebt * activeRate)}</p>
-                                    
+
                                     {needsCustomer && !selectedCustomerId && (
                                         <p className="text-xs text-rose-400 mt-2 font-bold">
                                             ⚠️ Debes seleccionar un cliente para registrar el abono
@@ -423,7 +450,7 @@ export default function PaymentModal({ isOpen, onClose }: PaymentModalProps) {
                                     )}
 
                                     <label className="flex items-center gap-2 mt-3 cursor-pointer">
-                                        <input 
+                                        <input
                                             type="checkbox"
                                             checked={isPartialPayment}
                                             onChange={(e) => setIsPartialPayment(e.target.checked)}
@@ -438,7 +465,7 @@ export default function PaymentModal({ isOpen, onClose }: PaymentModalProps) {
                         {/* Notes */}
                         <div className="space-y-3">
                             <h3 className="text-xs font-bold text-white uppercase tracking-widest">Notas / Referencia</h3>
-                            <textarea 
+                            <textarea
                                 value={notes}
                                 onChange={(e) => setNotes(e.target.value)}
                                 placeholder="Añade una nota o número de referencia..."
@@ -448,13 +475,13 @@ export default function PaymentModal({ isOpen, onClose }: PaymentModalProps) {
 
                         {/* Action Buttons */}
                         <div className="flex gap-4 pt-4">
-                            <button 
+                            <button
                                 onClick={onClose}
                                 className="flex-1 py-4 text-sm font-bold text-slate-400 hover:text-white transition-colors"
                             >
                                 Cancelar
                             </button>
-                            <button 
+                            <button
                                 onClick={handleProcessPayment}
                                 disabled={isProcessing || !canProcess}
                                 className="flex-[2] btn-primary py-4 group disabled:opacity-50 disabled:cursor-not-allowed"
@@ -471,7 +498,7 @@ export default function PaymentModal({ isOpen, onClose }: PaymentModalProps) {
                         </div>
                     </div>
                 </div>
-                
+
                 <div className="p-4 bg-background/50 border-t border-white/5 text-center">
                     <p className="text-[10px] text-slate-600 font-medium tracking-tight">
                         Al confirmar, se descontará el stock, se actualizarán los saldos y se registrará la transacción en la caja activa.
@@ -480,7 +507,7 @@ export default function PaymentModal({ isOpen, onClose }: PaymentModalProps) {
             </div>
 
             {/* Customer Quick Modal */}
-            <CustomerQuickModal 
+            <CustomerQuickModal
                 isOpen={showCustomerModal}
                 onClose={() => setShowCustomerModal(false)}
                 onCustomerCreated={(customerId) => {

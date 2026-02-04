@@ -17,6 +17,7 @@ from ...models.finance import AccountReceivable
 from ...models.customer import Customer
 from ...models.sale_repair import SaleRepair
 from ...core.utils import calculate_warranty_expiration
+from ...services.whatsapp_service import WhatsAppService
 
 router = APIRouter(tags=["sales"])
 
@@ -388,3 +389,34 @@ def return_sale(
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Error al procesar la devolución: {str(e)}")
+
+@router.post("/{sale_id}/send-whatsapp")
+def send_sale_whatsapp(
+    sale_id: int,
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_active_user)
+):
+    """Sends a sale ticket via WhatsApp to the customer."""
+    sale = db.query(Sale).filter(Sale.id == sale_id).first()
+    if not sale:
+        raise HTTPException(status_code=404, detail="Venta no encontrada")
+    
+    if not sale.customer_id:
+         raise HTTPException(status_code=400, detail="Esta venta no tiene un cliente asociado.")
+    
+    customer = sale.customer
+    if not customer or not customer.phone:
+        raise HTTPException(status_code=400, detail="El cliente no tiene un número de teléfono registrado.")
+    
+    success = WhatsAppService.send_ticket_notification(
+        db, 
+        customer.phone, 
+        customer.name, 
+        float(sale.total_usd), 
+        f"V-{sale.id}"
+    )
+    
+    if not success:
+        raise HTTPException(status_code=500, detail="Error al enviar mensaje de WhatsApp. Verifique la configuración en Ajustes.")
+    
+    return {"message": "WhatsApp enviado correctamente"}

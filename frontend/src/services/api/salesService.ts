@@ -6,7 +6,7 @@ export const salesService = {
     const { data } = await client.post<SaleRead>('sales/', saleData);
     return data;
   },
-  
+
   getSales: async () => {
     const { data } = await client.get<SaleRead[]>('sales/');
     return data;
@@ -14,6 +14,11 @@ export const salesService = {
 
   getSale: async (id: number) => {
     const { data } = await client.get<SaleRead>(`sales/${id}`);
+    return data;
+  },
+
+  sendWhatsApp: async (id: number) => {
+    const { data } = await client.post(`sales/${id}/send-whatsapp`);
     return data;
   }
 };

@@ -272,6 +272,7 @@ function RepairCard({ order, onStatusChange, onEdit }: { order: WorkOrderRead, o
               status={order.status}
               device={order.device_model}
               balance={balance}
+              mode="direct"
               className="h-9 px-3 text-[10px]"
             />
 

@@ -7,8 +7,13 @@ from ...models.sale import Sale, SaleItem
 from ...models.inventory import Product, Category
 from ...models.repair import Repair
 from ...models.finance import Payment
-from datetime import date, timedelta
+from datetime import date, timedelta, datetime, timezone
 import calendar
+from fastapi.responses import StreamingResponse
+from ...services.report_service import ReportService
+from ...utils.pdf_generator import PDFGenerator
+from reportlab.platypus import Paragraph, Spacer, Table
+from reportlab.lib.units import inch
 
 router = APIRouter(tags=["reports"])
 
@@ -236,3 +241,47 @@ def get_technician_performance(
             "color": "text-blue-400"
         }
     ]
+
+@router.get("/monthly-financial-pdf")
+def generate_monthly_financial_report(
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_active_user)
+):
+    """Genera un reporte PDF de cierre mensual."""
+    today = date.today()
+    start_date = date(today.year, today.month, 1)
+    # Get last day of month
+    last_day = calendar.monthrange(today.year, today.month)[1]
+    end_date = date(today.year, today.month, last_day)
+    
+    financials = ReportService.get_profit_loss(db, start_date, end_date)
+    
+    pdf = PDFGenerator(filename_prefix=f"cierre_mensual_{today.strftime('%m_%Y')}")
+    elements = pdf.create_standard_header(db, f"CIERRE FINANCIERO MENSUAL - {today.strftime('%B %Y').upper()}")
+    
+    # Financial Overview Table
+    elements.append(Paragraph("Resumen General de Utilidad", pdf.styles['Heading3']))
+    data = [
+        ["Concepto", "Monto (USD)"],
+        ["Ventas Brutas", f"${financials['revenue']:.2f}"],
+        ["Costo de Ventas (COGS)", f"${financials['cogs']:.2f}"],
+        ["Utilidad Bruta", f"${financials['gross_profit']:.2f}"],
+        ["Gastos Operativos", f"${financials['expenses']:.2f}"],
+        ["Utilidad Neta", f"${financials['net_profit']:.2f}"]
+    ]
+    
+    t = Table(data, colWidths=[4*inch, 2*inch])
+    t.setStyle(pdf.get_table_style())
+    elements.append(t)
+    
+    elements.append(Spacer(1, 0.5 * inch))
+    
+    # Methodology Note
+    elements.append(Paragraph("Nota: Este reporte consolida todas las ventas facturadas y gastos registrados en el periodo actual.", pdf.styles['Normal']))
+    
+    buffer = pdf.generate_streaming_response(elements)
+    return StreamingResponse(
+        buffer,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f"attachment; filename={pdf.filename}"}
+    )

@@ -12,11 +12,81 @@ from ...models.finance import CashSession
 from ...schemas.repair import RepairCreate, RepairRead, RepairUpdate, RepairItemCreate, RepairItemRead, RepairPaymentCreate
 from ..deps import get_current_active_user
 from ...utils.pdf_generator import PDFGenerator
+from ...services.whatsapp_service import WhatsAppService
 from reportlab.platypus import Paragraph, Spacer, Table, KeepTogether
 from reportlab.lib.units import inch
 from reportlab.lib import colors
 
 router = APIRouter(tags=["repairs"])
+
+@router.get("/export-csv")
+def export_repairs_csv(
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_active_user)
+):
+    output = io.StringIO()
+    writer = csv.writer(output)
+    
+    # Header
+    writer.writerow([
+        "id", "date", "customer", "equipment", "brand", 
+        "model", "status", "labor_cost", "parts_cost", 
+        "total_cost", "paid_amount"
+    ])
+    
+    repairs = db.query(Repair).order_by(Repair.created_at.desc()).all()
+    
+    for r in repairs:
+        customer_name = r.customer.name if r.customer else "N/A"
+        total_cost = (r.labor_cost_usd or 0) + (r.parts_cost_usd or 0)
+        writer.writerow([
+            r.id, r.created_at.strftime("%Y-%m-%d %H:%M:%S"),
+            customer_name, r.device_model or "", "",
+            "", r.status,
+            float(r.labor_cost_usd or 0), float(r.parts_cost_usd or 0),
+            float(total_cost), float(r.paid_amount_usd or 0)
+        ])
+    
+    output.seek(0)
+    return StreamingResponse(
+        iter([output.getvalue()]),
+        media_type="text/csv",
+        headers={"Content-Disposition": "attachment; filename=repairs_history.csv"}
+    )
+
+@router.get("/export-pdf")
+def export_repairs_pdf(
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_active_user)
+):
+    """Export repair history as PDF."""
+    repairs = db.query(Repair).order_by(Repair.created_at.desc()).all()
+    
+    pdf = PDFGenerator(filename_prefix="historial_reparaciones")
+    elements = pdf.create_standard_header(db, "HISTORIAL DE REPARACIONES")
+    
+    data = [["ID", "Fecha", "Cliente", "Equipo", "Estado", "Total"]]
+    for r in repairs:
+        total = r.total_cost_usd or 0
+        data.append([
+            str(r.id),
+            r.created_at.strftime("%d/%m/%Y"),
+            (r.customer.name[:15] if r.customer else "N/A"),
+            (r.device_model[:20] or "N/A"),
+            r.status.upper(),
+            f"${total}"
+        ])
+    
+    t = Table(data, colWidths=[0.5*inch, 1*inch, 1.5*inch, 1.7*inch, 1*inch, 0.8*inch])
+    t.setStyle(pdf.get_table_style())
+    elements.append(t)
+    
+    buffer = pdf.generate_streaming_response(elements)
+    return StreamingResponse(
+        buffer,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f"attachment; filename={pdf.filename}"}
+    )
 
 @router.post("/", response_model=RepairRead)
 def create_repair(
@@ -316,40 +386,6 @@ def record_repair_payment(
     
     return repair
 
-@router.get("/export-csv")
-def export_repairs_csv(
-    db: Session = Depends(get_db),
-    current_user = Depends(get_current_active_user)
-):
-    output = io.StringIO()
-    writer = csv.writer(output)
-    
-    # Header
-    writer.writerow([
-        "id", "date", "customer", "equipment", "brand", 
-        "model", "status", "labor_cost", "parts_cost", 
-        "total_cost", "paid_amount"
-    ])
-    
-    repairs = db.query(Repair).order_by(Repair.created_at.desc()).all()
-    
-    for r in repairs:
-        customer_name = r.customer.name if r.customer else "N/A"
-        total_cost = (r.labor_cost_usd or 0) + (r.parts_cost_usd or 0)
-        writer.writerow([
-            r.id, r.created_at.strftime("%Y-%m-%d %H:%M:%S"),
-            customer_name, r.device_model or "", "",
-            "", r.status,
-            float(r.labor_cost_usd or 0), float(r.parts_cost_usd or 0),
-            float(total_cost), float(r.paid_amount_usd or 0)
-        ])
-    
-    output.seek(0)
-    return StreamingResponse(
-        iter([output.getvalue()]),
-        media_type="text/csv",
-        headers={"Content-Disposition": "attachment; filename=repairs_history.csv"}
-    )
 
 @router.get("/{repair_id}/receipt")
 def get_repair_receipt(
@@ -419,38 +455,34 @@ def get_repair_receipt(
         headers={"Content-Disposition": f"attachment; filename={pdf.filename}"}
     )
 
-@router.get("/export-pdf")
-def export_repairs_pdf(
+@router.post("/{repair_id}/send-whatsapp")
+def send_repair_whatsapp(
+    repair_id: int,
     db: Session = Depends(get_db),
     current_user = Depends(get_current_active_user)
 ):
-    """Export repair history as PDF."""
-    repairs = db.query(Repair).order_by(Repair.created_at.desc()).all()
+    """Sends a repair status update via WhatsApp."""
+    repair = db.query(Repair).filter(Repair.id == repair_id).first()
+    if not repair:
+        raise HTTPException(status_code=404, detail="Reparación no encontrada")
     
-    pdf = PDFGenerator(filename_prefix="historial_reparaciones")
-    elements = pdf.create_standard_header(db, "HISTORIAL DE REPARACIONES")
+    customer = repair.customer
+    if not customer or not customer.phone:
+        raise HTTPException(status_code=400, detail="El cliente no tiene un número de teléfono registrado.")
     
-    data = [["ID", "Fecha", "Cliente", "Equipo", "Estado", "Total"]]
-    for r in repairs:
-        total = r.total_cost_usd or 0
-        data.append([
-            str(r.id),
-            r.created_at.strftime("%d/%m/%Y"),
-            (r.customer.name[:15] if r.customer else "N/A"),
-            (r.device_model[:20] or "N/A"),
-            r.status.upper(),
-            f"${total}"
-        ])
-    
-    t = Table(data, colWidths=[0.5*inch, 1*inch, 1.5*inch, 1.7*inch, 1*inch, 0.8*inch])
-    t.setStyle(pdf.get_table_style())
-    elements.append(t)
-    
-    buffer = pdf.generate_streaming_response(elements)
-    return StreamingResponse(
-        buffer,
-        media_type="application/pdf",
-        headers={"Content-Disposition": f"attachment; filename={pdf.filename}"}
+    success = WhatsAppService.send_repair_status_notification(
+        db,
+        customer.phone,
+        customer.name,
+        repair.device_model,
+        repair.status,
+        repair.id
     )
+    
+    if not success:
+        raise HTTPException(status_code=500, detail="Error al enviar mensaje de WhatsApp. Verifique la configuración en Ajustes.")
+    
+    return {"message": "WhatsApp enviado correctamente"}
+
 
 

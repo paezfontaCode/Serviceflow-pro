@@ -94,6 +94,20 @@ export const financeService = {
   getRecentActivity: async (limit: number = 10) => {
     const { data } = await client.get<ActivityItem[]>(`dashboard/recent-activity?limit=${limit}`);
     return data;
+  },
+
+  downloadMonthlyReport: async () => {
+    const response = await client.get('reports/monthly-financial-pdf', {
+      responseType: 'blob'
+    });
+
+    const url = window.URL.createObjectURL(new Blob([response.data]));
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `cierre_mensual_${new Date().getMonth() + 1}_${new Date().getFullYear()}.pdf`);
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
   }
 };
 

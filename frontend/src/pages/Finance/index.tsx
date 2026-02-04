@@ -7,6 +7,8 @@ import {
     ArrowRight,
     Loader2,
     Users
+    Search,
+    X,
 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { financeService, CashSessionRead } from '@/services/api/financeService';
@@ -31,6 +33,13 @@ const calculateProgress = (amount: number | undefined, total: number | undefined
 
 export default function Finance() {
     const [isMounted, setIsMounted] = useState(false);
+    const [isFilterVisible, setIsFilterVisible] = useState(false);
+    const [isDownloading, setIsDownloading] = useState(false);
+
+    // Filters State
+    const [searchQuery, setSearchQuery] = useState('');
+    const [statusFilter, setStatusFilter] = useState('all');
+
     const { data: summary, isLoading } = useQuery({
         queryKey: ['financeSummary'],
         queryFn: financeService.getSummary,
@@ -69,16 +78,67 @@ export default function Finance() {
                 </div>
 
                 <div className="flex items-center gap-3">
-                    <button className="btn-primary px-6 py-3 text-sm flex items-center gap-2 group">
-                        <Calendar size={18} />
+                    <button
+                        onClick={async () => {
+                            setIsDownloading(true);
+                            try {
+                                await financeService.downloadMonthlyReport();
+                            } finally {
+                                setIsDownloading(false);
+                            }
+                        }}
+                        disabled={isDownloading}
+                        className="btn-primary px-6 py-3 text-sm flex items-center gap-2 group disabled:opacity-50"
+                    >
+                        {isDownloading ? <Loader2 size={18} className="animate-spin" /> : <Calendar size={18} />}
                         Cierre de Mes
                     </button>
-                    <button className="glass px-6 py-3 rounded-2xl border-white/5 text-slate-400 hover:text-white transition-all text-sm font-bold flex items-center gap-2">
+                    <button
+                        onClick={() => setIsFilterVisible(!isFilterVisible)}
+                        className={`glass px-6 py-3 rounded-2xl border-white/5 transition-all text-sm font-bold flex items-center gap-2 ${isFilterVisible ? 'bg-white/10 text-white' : 'text-slate-400 hover:text-white'}`}
+                    >
                         <Filter size={18} />
                         Filtrar
                     </button>
                 </div>
             </div>
+
+            {/* Filter Bar */}
+            {isFilterVisible && (
+                <div className="glass-card p-4 border-white/5 flex flex-col md:flex-row gap-4 animate-in slide-in-from-top duration-300">
+                    <div className="flex-1 relative">
+                        <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" size={18} />
+                        <input
+                            type="text"
+                            placeholder="Buscar por código de sesión..."
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            className="w-full bg-white/5 border border-white/10 rounded-xl py-3 pl-12 pr-4 text-sm text-white focus:outline-none focus:ring-2 focus:ring-primary-500 transition-all"
+                        />
+                    </div>
+                    <div className="flex gap-4">
+                        <select
+                            value={statusFilter}
+                            onChange={(e) => setStatusFilter(e.target.value)}
+                            className="bg-white/5 border border-white/10 rounded-xl py-3 px-4 text-sm text-white focus:outline-none focus:ring-2 focus:ring-primary-500 transition-all min-w-[150px]"
+                        >
+                            <option value="all">Todos los estados</option>
+                            <option value="open">Abiertas</option>
+                            <option value="closed">Cerradas</option>
+                        </select>
+                        <button
+                            onClick={() => {
+                                setSearchQuery('');
+                                setStatusFilter('all');
+                            }}
+                            className="glass px-4 py-3 rounded-xl border-white/5 text-slate-400 hover:text-white transition-all text-sm flex items-center gap-2"
+                        >
+                            <X size={16} />
+                            Limpiar
+                        </button>
+                    </div>
+                </div>
+            )}
 
             {/* Financial Status Cards */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -249,7 +309,11 @@ export default function Finance() {
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-white/5 text-sm">
-                                {sessions?.map((session: CashSessionRead) => (
+                                {sessions?.filter((s: CashSessionRead) => {
+                                    const matchSearch = s.session_code.toLowerCase().includes(searchQuery.toLowerCase());
+                                    const matchStatus = statusFilter === 'all' || s.status === statusFilter;
+                                    return matchSearch && matchStatus;
+                                }).map((session: CashSessionRead) => (
                                     <tr key={session.id} className="hover:bg-white/[0.02] transition-colors group">
                                         <td className="px-6 py-4">
                                             <div className="flex flex-col">

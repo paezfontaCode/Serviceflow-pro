@@ -89,121 +89,6 @@ def create_customer(
         print(f"Error creating customer: {e}")
         raise HTTPException(status_code=400, detail=f"Error al crear cliente: {str(e)}")
 
-@router.get("/{customer_id}", response_model=CustomerRead)
-def read_customer(
-    customer_id: int,
-    db: Session = Depends(get_db),
-    current_user = Depends(get_current_active_user)
-):
-    customer = db.query(Customer).filter(Customer.id == customer_id).first()
-    if not customer:
-        raise HTTPException(status_code=404, detail="Customer not found")
-    return customer
-
-@router.get("/{customer_id}/profile", response_model=CustomerProfile)
-def read_customer_profile(
-    customer_id: int,
-    db: Session = Depends(get_db),
-    current_user = Depends(get_current_active_user)
-):
-    customer = db.query(Customer).filter(Customer.id == customer_id).first()
-    if not customer:
-        raise HTTPException(status_code=404, detail="Customer not found")
-    
-    # Fetch Related Data
-    
-    # 1. Repairs
-    repairs = db.query(Repair).filter(Repair.customer_id == customer_id).order_by(Repair.created_at.desc()).all()
-    active_repairs = [r for r in repairs if r.status in ['received', 'technical_review', 'pending_approval', 'in_progress', 'ready']]
-    repair_history = [r for r in repairs if r.status in ['delivered', 'cancelled']][:5]
-    
-    # 2. Sales & Spending
-    sales = db.query(Sale).filter(Sale.customer_id == customer_id).order_by(Sale.created_at.desc()).all()
-    recent_sales = sales[:5]
-    
-    total_spent = sum(sale.total_usd for sale in sales)
-    last_purchase_date = sales[0].created_at.date() if sales else None
-    
-    # 3. Financial Transactions (Ledger)
-    from ...models.finance import AccountReceivable, CustomerPayment
-    
-    # Charges (Debts)
-    charges = db.query(AccountReceivable).filter(AccountReceivable.customer_id == customer_id).all()
-    transaction_list = []
-    
-    for charge in charges:
-        transaction_list.append({
-            "id": charge.id,
-            "date": charge.created_at,
-            "type": "CHARGE",
-            "amount": charge.total_amount,
-            "reference": f"Credit Sale #{charge.sale_id}" if charge.sale_id else f"Repair #{charge.repair_id}",
-            "description": charge.notes or "Cargo a cuenta"
-        })
-        
-    # Payments (Abonos)
-    payments = db.query(CustomerPayment).filter(CustomerPayment.customer_id == customer_id).all()
-    for payment in payments:
-        transaction_list.append({
-            "id": payment.id,
-            "date": payment.payment_date,
-            "type": "PAYMENT",
-            "amount": payment.amount_usd,
-            "reference": payment.reference,
-            "description": f"Abono ({payment.payment_method})"
-        })
-        
-    # Sort transactions by date desc
-    transaction_list.sort(key=lambda x: x["date"], reverse=True)
-    
-    # Construct profile
-    profile_data = {
-        **customer.__dict__,
-        "total_spent": total_spent,
-        "last_purchase_date": last_purchase_date,
-        "active_repairs": active_repairs,
-        "repair_history": repair_history,
-        "recent_sales": recent_sales,
-        "transactions": transaction_list
-    }
-    
-    return profile_data
-
-@router.put("/{customer_id}", response_model=CustomerRead)
-def update_customer(
-    customer_id: int,
-    customer_in: CustomerUpdate,
-    db: Session = Depends(get_db),
-    current_user = Depends(get_current_active_user)
-):
-    customer = db.query(Customer).filter(Customer.id == customer_id).first()
-    if not customer:
-        raise HTTPException(status_code=404, detail="Customer not found")
-    
-    update_data = customer_in.model_dump(exclude_unset=True)
-    for field, value in update_data.items():
-        setattr(customer, field, value)
-    
-    db.commit()
-    db.refresh(customer)
-    return customer
-
-@router.delete("/{customer_id}")
-def delete_customer(
-    customer_id: int,
-    db: Session = Depends(get_db),
-    current_user = Depends(get_current_active_user)
-):
-    customer = db.query(Customer).filter(Customer.id == customer_id).first()
-    if not customer:
-        raise HTTPException(status_code=404, detail="Customer not found")
-    
-    # Check if customer has sales or repairs
-    # For now, we'll allow deletion (could add soft delete later)
-    db.delete(customer)
-    db.commit()
-    return {"message": "Customer deleted successfully"}
-
 @router.get("/export-csv")
 def export_customers_csv(
     db: Session = Depends(get_db),
@@ -319,6 +204,122 @@ async def import_customers_csv(
             
     db.commit()
     return stats
+
+@router.get("/{customer_id}", response_model=CustomerRead)
+def read_customer(
+    customer_id: int,
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_active_user)
+):
+    customer = db.query(Customer).filter(Customer.id == customer_id).first()
+    if not customer:
+        raise HTTPException(status_code=404, detail="Customer not found")
+    return customer
+
+@router.get("/{customer_id}/profile", response_model=CustomerProfile)
+def read_customer_profile(
+    customer_id: int,
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_active_user)
+):
+    customer = db.query(Customer).filter(Customer.id == customer_id).first()
+    if not customer:
+        raise HTTPException(status_code=404, detail="Customer not found")
+    
+    # Fetch Related Data
+    
+    # 1. Repairs
+    repairs = db.query(Repair).filter(Repair.customer_id == customer_id).order_by(Repair.created_at.desc()).all()
+    active_repairs = [r for r in repairs if r.status in ['received', 'technical_review', 'pending_approval', 'in_progress', 'ready']]
+    repair_history = [r for r in repairs if r.status in ['delivered', 'cancelled']][:5]
+    
+    # 2. Sales & Spending
+    sales = db.query(Sale).filter(Sale.customer_id == customer_id).order_by(Sale.created_at.desc()).all()
+    recent_sales = sales[:5]
+    
+    total_spent = sum(sale.total_usd for sale in sales)
+    last_purchase_date = sales[0].created_at.date() if sales else None
+    
+    # 3. Financial Transactions (Ledger)
+    from ...models.finance import AccountReceivable, CustomerPayment
+    
+    # Charges (Debts)
+    charges = db.query(AccountReceivable).filter(AccountReceivable.customer_id == customer_id).all()
+    transaction_list = []
+    
+    for charge in charges:
+        transaction_list.append({
+            "id": charge.id,
+            "date": charge.created_at,
+            "type": "CHARGE",
+            "amount": charge.total_amount,
+            "reference": f"Credit Sale #{charge.sale_id}" if charge.sale_id else f"Repair #{charge.repair_id}",
+            "description": charge.notes or "Cargo a cuenta"
+        })
+        
+    # Payments (Abonos)
+    payments = db.query(CustomerPayment).filter(CustomerPayment.customer_id == customer_id).all()
+    for payment in payments:
+        transaction_list.append({
+            "id": payment.id,
+            "date": payment.payment_date,
+            "type": "PAYMENT",
+            "amount": payment.amount_usd,
+            "reference": payment.reference,
+            "description": f"Abono ({payment.payment_method})"
+        })
+        
+    # Sort transactions by date desc
+    transaction_list.sort(key=lambda x: x["date"], reverse=True)
+    
+    # Construct profile
+    profile_data = {
+        **customer.__dict__,
+        "total_spent": total_spent,
+        "last_purchase_date": last_purchase_date,
+        "active_repairs": active_repairs,
+        "repair_history": repair_history,
+        "recent_sales": recent_sales,
+        "transactions": transaction_list
+    }
+    
+    return profile_data
+
+@router.put("/{customer_id}", response_model=CustomerRead)
+def update_customer(
+    customer_id: int,
+    customer_in: CustomerUpdate,
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_active_user)
+):
+    customer = db.query(Customer).filter(Customer.id == customer_id).first()
+    if not customer:
+        raise HTTPException(status_code=404, detail="Customer not found")
+    
+    update_data = customer_in.model_dump(exclude_unset=True)
+    for field, value in update_data.items():
+        setattr(customer, field, value)
+    
+    db.commit()
+    db.refresh(customer)
+    return customer
+
+@router.delete("/{customer_id}")
+def delete_customer(
+    customer_id: int,
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_active_user)
+):
+    customer = db.query(Customer).filter(Customer.id == customer_id).first()
+    if not customer:
+        raise HTTPException(status_code=404, detail="Customer not found")
+    
+    # Check if customer has sales or repairs
+    # For now, we'll allow deletion (could add soft delete later)
+    db.delete(customer)
+    db.commit()
+    return {"message": "Customer deleted successfully"}
+
 
 @router.get("/{customer_id}/export-history")
 def export_customer_history(
