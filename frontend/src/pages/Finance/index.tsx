@@ -6,7 +6,7 @@ import {
     Filter,
     ArrowRight,
     Loader2,
-    Users
+    Users,
     Search,
     X,
 } from 'lucide-react';

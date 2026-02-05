@@ -24,4 +24,5 @@ sentry-sdk[fastapi]==1.38.0  # Error monitoring
 httpx==0.26.0           # HTTP client for testing
 pytest==7.4.3            # Testing framework
 pytest-asyncio==0.21.1   # Async support for pytest
+requests==2.31.0
 

@@ -130,10 +130,6 @@ export default function PaymentModal({ isOpen, onClose }: PaymentModalProps) {
 
             // Warranty Notification Logic
             if (repairItems.length > 0 && !hasPendingDebt) {
-                const hasScreenRepair = repairItems.some(i =>
-                    i.repair.description?.toLowerCase().includes('pantalla') ||
-                    i.repair.model?.toLowerCase().includes('pantalla')
-                );
 
                 const warrantyDays = 7;
                 // Calculate actual warranty expiration for notification display
@@ -147,21 +143,23 @@ export default function PaymentModal({ isOpen, onClose }: PaymentModalProps) {
 
                 setTimeout(() => {
                     toast('¡Equipo Entregado!', {
-                        description: `Garantía hasta ${expDate.toLocaleDateString()}. ¿Enviar ticket por WhatsApp?`,
-                        icon: <div className="p-2 bg-emerald-500/20 rounded-full"><CheckCircle2 className="text-emerald-500" size={18} /></div>,
-                        component: (
-                            <WhatsAppButton
-                                phone={selectedCustomer?.phone}
-                                customerName={selectedCustomer?.name || 'Cliente'}
-                                orderId={response.id}
-                                status="DELIVERED"
-                                device={repairItems[0]?.repair.model || 'Equipo'}
-                                balance={0}
-                                mode="direct"
-                                type="sale"
-                                className="mt-2 w-full"
-                            />
+                        description: (
+                            <div className="flex flex-col gap-2">
+                                <span>Garantía hasta {expDate.toLocaleDateString()}. ¿Enviar ticket por WhatsApp?</span>
+                                <WhatsAppButton
+                                    phone={selectedCustomer?.phone}
+                                    customerName={selectedCustomer?.name || 'Cliente'}
+                                    orderId={response.id}
+                                    status="DELIVERED"
+                                    device={repairItems[0]?.repair.model || 'Equipo'}
+                                    balance={0}
+                                    mode="direct"
+                                    type="sale"
+                                    className="w-full"
+                                />
+                            </div>
                         ),
+                        icon: <div className="p-2 bg-emerald-500/20 rounded-full"><CheckCircle2 className="text-emerald-500" size={18} /></div>,
                         duration: 10000,
                     });
                 }, 1000);
@@ -169,19 +167,21 @@ export default function PaymentModal({ isOpen, onClose }: PaymentModalProps) {
                 // Regular sale without repairs
                 setTimeout(() => {
                     toast('Venta Completada', {
-                        description: '¿Enviar comprobante digital?',
-                        component: (
-                            <WhatsAppButton
-                                phone={selectedCustomer.phone}
-                                customerName={selectedCustomer.name}
-                                orderId={response.id}
-                                status="PAID"
-                                device="Productos Diversos"
-                                balance={pendingDebt}
-                                mode="direct"
-                                type="sale"
-                                className="mt-2 w-full"
-                            />
+                        description: (
+                            <div className="flex flex-col gap-2">
+                                <span>¿Enviar comprobante digital?</span>
+                                <WhatsAppButton
+                                    phone={selectedCustomer.phone}
+                                    customerName={selectedCustomer.name}
+                                    orderId={response.id}
+                                    status="PAID"
+                                    device="Productos Diversos"
+                                    balance={pendingDebt}
+                                    mode="direct"
+                                    type="sale"
+                                    className="w-full"
+                                />
+                            </div>
                         ),
                         duration: 8000,
                     });
