@@ -11,6 +11,7 @@ from datetime import date, timedelta, datetime, timezone
 import calendar
 from fastapi.responses import StreamingResponse
 from ...services.report_service import ReportService
+from ...models.inventory import Product, Inventory
 from ...utils.pdf_generator import PDFGenerator
 from reportlab.platypus import Paragraph, Spacer, Table
 from reportlab.lib.units import inch
@@ -285,3 +286,150 @@ def generate_monthly_financial_report(
         media_type="application/pdf",
         headers={"Content-Disposition": f"attachment; filename={pdf.filename}"}
     )
+
+@router.get("/profit-loss")
+def get_profit_loss_report(
+    start_date: date,
+    end_date: date,
+    format: str = "json",
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_active_user)
+):
+    """Reporte de pérdidas y ganancias."""
+    if format == "json":
+        return ReportService.get_profit_loss(db, start_date, end_date)
+    
+    financials = ReportService.get_profit_loss(db, start_date, end_date)
+    pdf = PDFGenerator(filename_prefix=f"resultado_{start_date}_{end_date}")
+    elements = pdf.create_standard_header(db, f"ESTADO DE RESULTADOS (P&G)")
+    
+    # Financial Overview Table
+    elements.append(Paragraph(f"Periodo: {start_date} al {end_date}", pdf.styles['Normal']))
+    elements.append(Spacer(1, 0.2 * inch))
+    
+    data = [
+        ["Concepto", "Monto (USD)"],
+        ["Ingresos por Ventas", f"${financials['revenue']:.2f}"],
+        ["Costo de Ventas (COGS)", f"${financials['cogs']:.2f}"],
+        ["Utilidad Bruta", f"${financials['gross_profit']:.2f}"],
+        ["Gastos Operativos", f"${financials['expenses']:.2f}"],
+        ["UTILIDAD NETA", f"${financials['net_profit']:.2f}"]
+    ]
+    
+    t = Table(data, colWidths=[4*inch, 2*inch])
+    t.setStyle(pdf.get_table_style())
+    elements.append(t)
+    
+    buffer = pdf.generate_streaming_response(elements)
+    return StreamingResponse(
+        buffer,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f"attachment; filename={pdf.filename}"}
+    )
+
+@router.get("/aging")
+def get_aging_report(
+    format: str = "json",
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_active_user)
+):
+    """Reporte de antigüedad de cuentas por cobrar."""
+    if format == "json":
+        return ReportService.get_aging_report(db)
+    
+    aging = ReportService.get_aging_report(db)
+    pdf = PDFGenerator(filename_prefix="antigüedad_cobros")
+    elements = pdf.create_standard_header(db, "ANTIGÜEDAD DE CUENTAS POR COBRAR")
+    
+    data = [
+        ["Rango (Días)", "Monto Pendiente (USD)"],
+        ["0 - 30", f"${aging['0-30']:.2f}"],
+        ["31 - 60", f"${aging['31-60']:.2f}"],
+        ["61 - 90", f"${aging['61-90']:.2f}"],
+        ["Más de 90", f"${aging['90+']:.2f}"]
+    ]
+    
+    t = Table(data, colWidths=[3*inch, 2*inch])
+    t.setStyle(pdf.get_table_style())
+    elements.append(t)
+    
+    buffer = pdf.generate_streaming_response(elements)
+    return StreamingResponse(
+        buffer,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f"attachment; filename={pdf.filename}"}
+    )
+
+@router.get("/kardex/{product_id}")
+def get_product_kardex_report(
+    product_id: int,
+    format: str = "json",
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_active_user)
+):
+    """Reporte de movimientos de inventario (Kardex) para un producto."""
+    if format == "json":
+        return ReportService.get_product_kardex(db, product_id)
+    
+    kardex = ReportService.get_product_kardex(db, product_id)
+    product = db.query(Product).filter(Product.id == product_id).first()
+    
+    pdf = PDFGenerator(filename_prefix=f"kardex_{product_id}")
+    elements = pdf.create_standard_header(db, f"KARDEX DE PRODUCTO: {product.name if product else product_id}")
+    
+    data = [["Fecha", "Tipo", "Referencia", "Cambio", "Usuario"]]
+    for entry in kardex:
+        data.append([
+            entry['date'].strftime('%Y-%m-%d %H:%M'),
+            entry['type'],
+            entry['reference'],
+            str(entry['change']),
+            entry['user']
+        ])
+    
+    t = Table(data, colWidths=[1.5*inch, 1*inch, 2*inch, 0.8*inch, 1.2*inch])
+    t.setStyle(pdf.get_table_style())
+    elements.append(t)
+    
+    buffer = pdf.generate_streaming_response(elements)
+    return StreamingResponse(
+        buffer,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f"attachment; filename={pdf.filename}"}
+    )
+
+@router.get("/inventory/replenishment-report")
+def get_inventory_replenishment_report(
+    format: str = "json",
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_active_user)
+):
+    """Reporte de productos que necesitan reabastecimiento."""
+    if format == "json":
+        return ReportService.get_replenishment_report(db)
+    
+    replenishment_data = ReportService.get_replenishment_report(db)
+    pdf = PDFGenerator(filename_prefix="reporte_reabastecimiento")
+    elements = pdf.create_standard_header(db, "REPORTE DE REABASTECIMIENTO DE INVENTARIO")
+    
+    data = [["SKU", "Producto", "Stock Actual", "Mínimo", "Sugerido"]]
+    for item in replenishment_data:
+        data.append([
+            item['sku'],
+            item['name'],
+            str(item['quantity']),
+            str(item['min_stock']),
+            str(item['needed'])
+        ])
+    
+    t = Table(data, colWidths=[1*inch, 2.5*inch, 1*inch, 1*inch, 1*inch])
+    t.setStyle(pdf.get_table_style())
+    elements.append(t)
+    
+    buffer = pdf.generate_streaming_response(elements)
+    return StreamingResponse(
+        buffer,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f"attachment; filename={pdf.filename}"}
+    )
+

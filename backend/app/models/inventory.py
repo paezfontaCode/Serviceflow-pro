@@ -48,7 +48,7 @@ class Inventory(Base):
     min_stock = Column(Integer, default=5)
     max_stock = Column(Integer)
     location = Column(String(100))
-    last_updated = Column(DateTime(timezone=True), onupdate=func.now())
+    last_updated = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
     product = relationship("Product", back_populates="inventory")
     logs = relationship("InventoryLog", back_populates="inventory")

@@ -4,16 +4,19 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import StreamingResponse
 import csv
 import io
+from sqlalchemy import func as sa_func, select, and_, or_
 from sqlalchemy.orm import Session
 from ...core.database import get_db
-from ...models.repair import Repair, RepairLog, RepairItem
+from ...models.customer import Customer
+from ...models.repair import Repair, RepairItem, RepairLog
 from ...models.inventory import Product, Inventory
-from ...models.finance import CashSession
+from ...models.finance import Payment, CashTransaction, CashSession, ExchangeRate
 from ...schemas.repair import RepairCreate, RepairRead, RepairUpdate, RepairItemCreate, RepairItemRead, RepairPaymentCreate
 from ..deps import get_current_active_user
 from ...utils.pdf_generator import PDFGenerator
 from ...services.whatsapp_service import WhatsAppService
-from reportlab.platypus import Paragraph, Spacer, Table, KeepTogether
+from reportlab.platypus import Paragraph, Spacer, Table, KeepTogether, SimpleDocTemplate
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import inch
 from reportlab.lib import colors
 
@@ -100,7 +103,7 @@ def create_repair(
     
     # Create repair record
     try:
-        db_repair = Repair(**repair_data, status="received", created_by_id=current_user.id)
+        db_repair = Repair(**repair_data, status="RECEIVED", created_by_id=current_user.id)
         db.add(db_repair)
         db.flush()  # Get repair ID without committing
         
@@ -142,7 +145,7 @@ def create_repair(
         # db_repair.parts_cost_usd = total_parts_cost (Removed: property has no setter)
         
         # Log initial status
-        log = RepairLog(repair_id=db_repair.id, user_id=current_user.id, status_to="received", notes="Reparación recibida")
+        log = RepairLog(repair_id=db_repair.id, user_id=current_user.id, status_to="RECEIVED", notes="Reparación recibida")
         db.add(log)
         
         db.commit()
@@ -188,16 +191,95 @@ def update_repair(
     db.refresh(db_repair)
     return db_repair
 
-@router.get("/", response_model=List[RepairRead])
+from ...schemas.common import PaginatedResponse
+
+@router.get("/", response_model=PaginatedResponse[RepairRead])
 def read_repairs(
+    page: int = 1,
+    size: int = 20,
+    status: Optional[str] = None,
+    search: Optional[str] = None,
+    exclude_archived: bool = False,
     db: Session = Depends(get_db),
-    current_user = Depends(get_current_active_user),
-    status: str = None
+    current_user = Depends(get_current_active_user)
 ):
     query = db.query(Repair)
     if status:
         query = query.filter(Repair.status == status)
-    return query.all()
+    
+    if search:
+        search_filter = f"%{search}%"
+        query = query.join(Customer).filter(
+            (Repair.device_model.ilike(search_filter)) |
+            (Repair.device_imei.ilike(search_filter)) |
+            (Repair.problem_description.ilike(search_filter)) |
+            (Customer.name.ilike(search_filter))
+        )
+    
+    if exclude_archived:
+        # An order is archived if it's DELIVERED AND balance is 0
+        
+        # Calculate parts cost subquery
+        parts_cost_subquery = (
+            select(sa_func.sum(RepairItem.unit_cost_usd * RepairItem.quantity))
+            .where(RepairItem.repair_id == Repair.id)
+            .correlate(Repair)
+            .scalar_subquery()
+        )
+        
+        query = query.filter(
+            or_(
+                Repair.status != "DELIVERED",
+                Repair.paid_amount_usd < (
+                    sa_func.coalesce(Repair.labor_cost_usd, 0) + 
+                    sa_func.coalesce(parts_cost_subquery, 0)
+                )
+            )
+        )
+    
+    total = query.count()
+    pages = (total + size - 1) // size
+    skip = (page - 1) * size
+    
+    repairs = query.order_by(Repair.created_at.desc()).offset(skip).limit(size).all()
+    enriched = enrich_repair_objects(db, repairs)
+    
+    return PaginatedResponse(
+        items=enriched,
+        total=total,
+        page=page,
+        size=size,
+        pages=pages
+    )
+
+def enrich_repair_objects(db: Session, repairs):
+    if not isinstance(repairs, list):
+        is_list = False
+        repairs_list = [repairs]
+    else:
+        is_list = True
+        repairs_list = repairs
+    
+    for r in repairs_list:
+        # Recurrence logic: Find any other repair for same customer AND (same device_imei OR same device_model)
+        query = db.query(Repair).filter(
+            Repair.customer_id == r.customer_id,
+            Repair.id != r.id
+        )
+        if r.device_imei:
+            query = query.filter(Repair.device_imei == r.device_imei)
+        else:
+            query = query.filter(Repair.device_model == r.device_model)
+        
+        previous = query.order_by(Repair.created_at.desc()).first()
+        if previous:
+            r.is_recurring = True
+            r.previous_repair_id = previous.id
+        else:
+            r.is_recurring = False
+            r.previous_repair_id = None
+            
+    return repairs_list if is_list else repairs_list[0]
 
 @router.get("/{repair_id}", response_model=RepairRead)
 def read_repair(
@@ -208,7 +290,7 @@ def read_repair(
     repair = db.query(Repair).filter(Repair.id == repair_id).first()
     if not repair:
         raise HTTPException(status_code=404, detail="Repair not found")
-    return repair
+    return enrich_repair_objects(db, repair)
 
 @router.patch("/{repair_id}/status", response_model=RepairRead)
 def update_repair_status(
@@ -227,20 +309,28 @@ def update_repair_status(
     if not new_status:
         raise HTTPException(status_code=400, detail="Status is required")
         
-    db_repair.status = new_status
+    db_repair.status = new_status.upper()
+    
+    # Logic for delivery and warranty
+    from datetime import datetime, timedelta
+    if db_repair.status == "DELIVERED" and old_status != "DELIVERED":
+        db_repair.delivered_at = datetime.now()
+        # Default warranty 30 days if not set
+        if not db_repair.warranty_expiration:
+            db_repair.warranty_expiration = db_repair.delivered_at + timedelta(days=30)
     
     log = RepairLog(
         repair_id=db_repair.id, 
         user_id=current_user.id, 
         status_from=old_status, 
-        status_to=new_status,
-        notes="Estado actualizado desde el listado"
+        status_to=db_repair.status,
+        notes=status_in.get("notes", "Estado actualizado desde la interfaz")
     )
     db.add(log)
     
     db.commit()
     db.refresh(db_repair)
-    return db_repair
+    return enrich_repair_objects(db, db_repair)
 
 # --- Repair Items (Parts) Endpoints ---
 
@@ -362,14 +452,41 @@ def record_repair_payment(
     current_paid = Decimal(str(repair.paid_amount_usd or 0))
     repair.paid_amount_usd = current_paid + amount
     
+    # Get current exchange rate
+    rate_obj = db.query(ExchangeRate).filter(ExchangeRate.is_active == True).first()
+    current_rate = rate_obj.rate if rate_obj else Decimal('1.0')
+
     # Check if an open CashSession exists and record income
     open_session = db.query(CashSession).filter(
         CashSession.status == "open"
     ).first()
     
+    # Create Payment record for tracking & dashboard
+    payment = Payment(
+        repair_id=repair.id,
+        session_id=open_session.id if open_session else None,
+        amount_usd=amount,
+        amount_ves=amount * current_rate,
+        exchange_rate=current_rate,
+        payment_method=payment_in.payment_method,
+        currency="USD" # Manual repair payments are usually USD in context
+    )
+    db.add(payment)
+
     if open_session:
         # Add to expected amount in USD
         open_session.expected_amount = Decimal(str(open_session.expected_amount or 0)) + amount
+        
+        # Record CashTransaction for session tracking
+        transaction = CashTransaction(
+            session_id=open_session.id,
+            transaction_type="repair_payment",
+            amount_usd=amount,
+            amount_ves=amount * current_rate,
+            exchange_rate=current_rate,
+            description=f"Pago reparación #{repair.id}"
+        )
+        db.add(transaction)
     
     # Log the payment
     log = RepairLog(
@@ -453,6 +570,68 @@ def get_repair_receipt(
         buffer,
         media_type="application/pdf",
         headers={"Content-Disposition": f"attachment; filename={pdf.filename}"}
+    )
+@router.get("/{repair_id}/label")
+def get_repair_label(
+    repair_id: int,
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_active_user)
+):
+    """Generate a small 58mm label for equipment identification."""
+    repair = db.query(Repair).filter(Repair.id == repair_id).first()
+    if not repair:
+        raise HTTPException(status_code=404, detail="Reparación no encontrada")
+    
+    # 58mm is approximately 2.28 inches. We use a custom page size for thermal labels.
+    from reportlab.lib.pagesizes import mm
+    label_width = 58 * mm
+    label_height = 40 * mm # Adjust height as needed
+    
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(
+        buffer, 
+        pagesize=(label_width, label_height),
+        rightMargin=2*mm, leftMargin=2*mm,
+        topMargin=2*mm, bottomMargin=2*mm
+    )
+    
+    styles = getSampleStyleSheet()
+    # High contrast styles for thermal printing
+    id_style = ParagraphStyle(
+        'IDStyle',
+        parent=styles['Heading1'],
+        fontSize=24,
+        alignment=1, # Center
+        spaceAfter=2
+    )
+    info_style = ParagraphStyle(
+        'InfoStyle',
+        parent=styles['Normal'],
+        fontSize=8,
+        alignment=1,
+        leading=10
+    )
+    
+    elements = []
+    # ID is the most important part
+    elements.append(Paragraph(f"#{repair.id:05d}", id_style))
+    
+    # Customer and Device
+    customer_name = repair.customer.name if repair.customer else "CLIENTE N/A"
+    elements.append(Paragraph(customer_name.upper(), info_style))
+    elements.append(Paragraph(repair.device_model.upper(), info_style))
+    
+    # Date
+    date_str = repair.created_at.strftime("%d/%m/%Y")
+    elements.append(Paragraph(date_str, info_style))
+    
+    doc.build(elements)
+    buffer.seek(0)
+    
+    return StreamingResponse(
+        buffer,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f"attachment; filename=label_{repair_id}.pdf"}
     )
 
 @router.post("/{repair_id}/send-whatsapp")

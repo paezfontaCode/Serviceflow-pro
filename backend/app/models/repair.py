@@ -16,7 +16,7 @@ class Repair(Base):
     problem_description = Column(Text, nullable=False)
     technical_report = Column(Text)
     
-    status = Column(String(20), default="received")  # 'received', 'in_progress', 'ready', 'delivered', 'cancelled'
+    status = Column(String(20), default="RECEIVED")  # 'RECEIVED', 'IN_PROGRESS', 'READY', 'DELIVERED', 'CANCELLED'
     
     # Enhanced Service Info
     service_type = Column(String(20), default="SERVICE") # 'SOFTWARE', 'HARDWARE', 'REVISION'
@@ -49,6 +49,18 @@ class Repair(Base):
         if not self.items:
             return 0
         return sum((item.unit_cost_usd or 0) * item.quantity for item in self.items)
+
+    @property
+    def is_warranty_active(self):
+        """Check if warranty is currently valid"""
+        import datetime
+        from sqlalchemy.sql import func
+        if not self.warranty_expiration:
+            return False
+        # Handle both offset-aware and naive datetime comparison if needed
+        # For simplicity, we compare with current time
+        now = datetime.datetime.now(self.warranty_expiration.tzinfo) if self.warranty_expiration.tzinfo else datetime.datetime.now()
+        return self.warranty_expiration > now
 
     @property
     def total_cost_usd(self):

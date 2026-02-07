@@ -11,6 +11,7 @@ from ...schemas.finance import (
 )
 from ..deps import get_current_active_user
 from ...core.cache import cache
+from ...services.audit_service import AuditService
 
 router = APIRouter(tags=["finance"])
 
@@ -67,6 +68,24 @@ def get_current_rate(db: Session = Depends(get_db)):
     cache.set("current_exchange_rate", rate_data, ttl=600)
     
     return rate
+
+
+@router.post("/exchange-rates/update-auto", response_model=ExchangeRateRead)
+async def update_exchange_rate_auto(
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_active_user)
+):
+    from ...services.currency_service import CurrencyService
+    rate = await CurrencyService.update_official_rate(db)
+    if not rate:
+        raise HTTPException(
+            status_code=503, 
+            detail="No se pudo obtener la tasa desde el BCV. Por favor intente más tarde o use el modo manual."
+        )
+    
+    # Get the newly created/updated record
+    db_rate = db.query(ExchangeRate).filter(ExchangeRate.is_active == True).order_by(ExchangeRate.effective_date.desc()).first()
+    return db_rate
 
 # --- Cash Session Endpoints ---
 
@@ -136,6 +155,16 @@ def open_cash_session(
     
     db.commit()
     db.refresh(db_session)
+
+    AuditService.log_action(
+        db,
+        user_id=current_user.id,
+        action="OPEN_CASH_SESSION",
+        target_type="CASH_SESSION",
+        target_id=db_session.id,
+        details={"session_code": db_session.session_code, "opening_amount": float(db_session.opening_amount)}
+    )
+
     return db_session
 
 @router.get("/cash-sessions/current/", response_model=CashSessionRead | None)
@@ -236,6 +265,21 @@ def close_cash_session(
     
     db.commit()
     db.refresh(db_session)
+
+    AuditService.log_action(
+        db,
+        user_id=current_user.id,
+        action="CLOSE_CASH_SESSION",
+        target_type="CASH_SESSION",
+        target_id=db_session.id,
+        details={
+            "session_code": db_session.session_code, 
+            "actual_amount": float(db_session.actual_amount),
+            "shortage": float(db_session.shortage),
+            "overage": float(db_session.overage)
+        }
+    )
+
     return db_session
 
 # --- Accounts Receivable Endpoints ---
@@ -491,11 +535,6 @@ def get_finance_summary(
     exchange_rate = rate.rate if rate else Decimal(1)
     
     # Collections by method (Today)
-    # Collections logic - simplified to use Payment directly
-    # Previous complex query removed as it was causing issues and results were unused
-    
-    # Wait, let's fix the logic for collections. 
-    # If the model doesn't have it, we use Payment which has it.
     collections = db.query(
         Payment.payment_method,
         func.sum(Payment.amount_usd)
@@ -507,12 +546,23 @@ def get_finance_summary(
     
     collections_dict = {m: float(a) for m, a in collections}
 
+    # Total Sales Today (Independent of session)
+    total_sales_today = db.query(func.sum(Payment.amount_usd)).filter(
+        func.date(Payment.created_at) == today
+    ).scalar() or Decimal(0)
+    
+    total_sales_today_ves = db.query(func.sum(Payment.amount_ves)).filter(
+        func.date(Payment.created_at) == today
+    ).scalar() or Decimal(0)
+
     return {
         "total_receivables": float(total_receivables),
         "overdue_amount": float(overdue_amount),
         "morosos_count": morosos_count,
         "cash_in_session": float(cash_in_session),
         "cash_in_session_ves": float(cash_in_session_ves),
+        "total_sales_today": float(total_sales_today),
+        "total_sales_today_ves": float(total_sales_today_ves),
         "exchange_rate": float(exchange_rate),
         "session_active": session is not None,
         "session_code": session.session_code if session else None,

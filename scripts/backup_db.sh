@@ -1,35 +1,37 @@
 #!/bin/bash
 
-# Serviceflow Pro - Automated Database Backup Script
-# This script performs a pg_dump of the PostgreSQL database, compresses it, 
-# and saves it with a date prefix.
+# Configuration
+# This script assumes the container name is 'serviceflow-db' and uses user 'serviceflow'
+CONTAINER_NAME="serviceflow-db"
+DB_USER="serviceflow"
+DB_NAME="serviceflow_db"
+BACKUP_DIR="./backups"
+TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
+FILENAME="$BACKUP_DIR/backup_$TIMESTAMP.sql"
 
-# --- Configuration ---
-BACKUP_DIR="/backups"
-DB_NAME="serviceflow"
-DB_USER="postgres"
-DATE=$(date +%Y-%m-%d_%H%M%S)
-BACKUP_NAME="backup_${DB_NAME}_${DATE}.sql.gz"
+# Colors
+GREEN='\033[0;32m'
+RED='\033[0;31m'
+NC='\033[0m'
+
+echo "Starting backup for database: $DB_NAME..."
 
 # Create backup directory if it doesn't exist
 mkdir -p "$BACKUP_DIR"
 
-echo "Starting backup of ${DB_NAME} at $(date)"
-
-# Perform backup using pg_dump
-# Note: PGPASSWORD can be provided via environment or ~/.pgpass for automation
-pg_dump -U "$DB_USER" "$DB_NAME" | gzip > "${BACKUP_DIR}/${BACKUP_NAME}"
-
-# Check if backup was successful
-if [ $? -eq 0 ]; then
-    echo "Backup successful: ${BACKUP_DIR}/${BACKUP_NAME}"
+# Execute pg_dump inside the container
+if docker exec "$CONTAINER_NAME" pg_dump -U "$DB_USER" "$DB_NAME" > "$FILENAME"; then
+    echo -e "${GREEN}Backup successful!${NC}"
+    echo "Saved to: $FILENAME"
     
-    # Optional: Keep only the last 30 days of backups
-    find "$BACKUP_DIR" -type f -name "backup_${DB_NAME}_*.sql.gz" -mtime +30 -delete
-    echo "Cleaned up backups older than 30 days."
+    # Compress the backup
+    gzip "$FILENAME"
+    echo "Compressed to: $FILENAME.gz"
+    
+    # Clean up old backups (keep last 7 days)
+    find "$BACKUP_DIR" -name "backup_*.sql.gz" -mtime +7 -delete
+    echo "Old backups older than 7 days have been cleaned up."
 else
-    echo "Error: Backup failed!" >&2
+    echo -e "${RED}Backup failed!${NC}"
     exit 1
 fi
-
-echo "Backup process finished at $(date)"

@@ -152,9 +152,9 @@ export default function Reports() {
                         </div>
                     </div>
 
-                    <div className="h-[350px] w-full min-h-[350px] relative">
+                    <div className="h-[350px] w-full min-h-[350px] relative min-w-0">
                         {isMounted && (
-                            <ResponsiveContainer width="100%" height="100%" debounce={50}>
+                            <ResponsiveContainer width="100%" height="100%" debounce={50} minWidth={0} minHeight={0}>
                                 <AreaChart data={chartData}>
                                     <defs>
                                         <linearGradient id="colorSales" x1="0" y1="0" x2="0" y2="1">
@@ -183,9 +183,9 @@ export default function Reports() {
                         Ventas por Categoría
                     </h3>
 
-                    <div className="h-[250px] w-full relative">
+                    <div className="h-[250px] w-full relative min-w-0">
                         {isMounted && catData.length > 0 && (
-                            <ResponsiveContainer width="100%" height="100%" debounce={50}>
+                            <ResponsiveContainer width="100%" height="100%" debounce={50} minWidth={0} minHeight={0}>
                                 <RePieChart>
                                     <Pie
                                         data={catData}

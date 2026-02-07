@@ -1,4 +1,5 @@
-from typing import List
+from typing import List, Optional
+from sqlalchemy import func
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import StreamingResponse
 import csv
@@ -230,6 +231,85 @@ def create_sale(
         raise HTTPException(status_code=500, detail=f"Error al procesar la venta: {str(e)}")
 
 
+@router.get("/history")
+def get_sales_history(
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_active_user),
+    start_date: Optional[date] = None,
+    end_date: Optional[date] = None,
+    customer_id: Optional[int] = None,
+    payment_status: Optional[str] = None
+):
+    """Returns sales history with filters and summary totals"""
+    query = db.query(Sale)
+    
+    if start_date:
+        query = query.filter(func.date(Sale.created_at) >= start_date)
+    if end_date:
+        query = query.filter(func.date(Sale.created_at) <= end_date)
+    if customer_id:
+        query = query.filter(Sale.customer_id == customer_id)
+    if payment_status:
+        query = query.filter(Sale.payment_status == payment_status)
+        
+    sales = query.order_by(Sale.created_at.desc()).all()
+    
+    # Process sales to include derived fields
+    processed_sales = []
+    total_revenue_usd = Decimal(0)
+    total_pending_usd = Decimal(0)
+    
+    for s in sales:
+        # Get AR for this sale if exists
+        ar = db.query(AccountReceivable).filter(AccountReceivable.sale_id == s.id).first()
+        
+        paid_amount = s.total_usd
+        pending_amount = Decimal(0)
+        
+        if ar:
+            pending_amount = ar.total_amount - (ar.paid_amount or 0)
+            paid_amount = ar.paid_amount
+        
+        # If it was a cash only sale without AR (fully paid)
+        # s.total_usd is indeed the paid_amount
+        
+        s_data = {
+            "id": s.id,
+            "customer_id": s.customer_id,
+            "customer_name": s.customer.name if s.customer else "Cliente Ocasional",
+            "user_id": s.user_id,
+            "total_usd": float(s.total_usd),
+            "total_ves": float(s.total_ves),
+            "exchange_rate": float(s.exchange_rate),
+            "payment_method": s.payment_method,
+            "payment_status": s.payment_status,
+            "created_at": s.created_at,
+            "paid_amount": float(paid_amount),
+            "pending_amount": float(pending_amount),
+            "items": [
+                {
+                    "id": item.id,
+                    "product_id": item.product_id,
+                    "product_name": item.product.name if item.product else "Producto Desconocido",
+                    "quantity": item.quantity,
+                    "unit_price_usd": float(item.unit_price_usd),
+                    "subtotal_usd": float(item.subtotal_usd)
+                } for item in s.items
+            ]
+        }
+        processed_sales.append(s_data)
+        total_revenue_usd += paid_amount
+        total_pending_usd += pending_amount
+        
+    return {
+        "sales": processed_sales,
+        "summary": {
+            "count": len(processed_sales),
+            "total_revenue_usd": float(total_revenue_usd),
+            "total_pending_usd": float(total_pending_usd)
+        }
+    }
+
 @router.get("/", response_model=List[SaleRead])
 def read_sales(
     db: Session = Depends(get_db),
@@ -238,6 +318,18 @@ def read_sales(
     limit: int = 100
 ):
     sales = db.query(Sale).order_by(Sale.created_at.desc()).offset(skip).limit(limit).all()
+    
+    # Populate derived fields
+    for s in sales:
+        ar = db.query(AccountReceivable).filter(AccountReceivable.sale_id == s.id).first()
+        if ar:
+            s.pending_amount = ar.total_amount - (ar.paid_amount or 0)
+            s.paid_amount = ar.paid_amount
+        else:
+            s.paid_amount = s.total_usd
+            s.pending_amount = Decimal(0)
+        s.customer_name = s.customer.name if s.customer else "Cliente Ocasional"
+            
     return sales
 
 @router.get("/{sale_id}", response_model=SaleRead)
@@ -246,10 +338,21 @@ def read_sale(
     db: Session = Depends(get_db),
     current_user = Depends(get_current_active_user)
 ):
-    sale = db.query(Sale).filter(Sale.id == sale_id).first()
-    if not sale:
+    s = db.query(Sale).filter(Sale.id == sale_id).first()
+    if not s:
         raise HTTPException(status_code=404, detail="Venta no encontrada")
-    return sale
+    
+    # Populate derived fields
+    ar = db.query(AccountReceivable).filter(AccountReceivable.sale_id == s.id).first()
+    if ar:
+        s.pending_amount = ar.total_amount - (ar.paid_amount or 0)
+        s.paid_amount = ar.paid_amount
+    else:
+        s.paid_amount = s.total_usd
+        s.pending_amount = Decimal(0)
+    s.customer_name = s.customer.name if s.customer else "Cliente Ocasional"
+        
+    return s
 
 @router.get("/export/csv")
 def export_sales_csv(

@@ -18,9 +18,9 @@ export default function ReadyOrdersModal({ isOpen, onClose }: ReadyOrdersModalPr
     const { data: repairs, isLoading } = useQuery({
         queryKey: ['workOrders'],
         queryFn: async () => {
-            const all = await repairService.getWorkOrders();
+            const response = await repairService.getWorkOrders(1, 100);
             // Filter: teams in COMPLETED or READY state with pending balance.
-            return all.filter(r => {
+            return response.items.filter(r => {
                 const status = r.status.toLowerCase();
                 const isReady = status === 'completed' || status === 'ready' || status === 'listo';
                 const hasBalance = (Number(r.labor_cost_usd || 0) + Number(r.parts_cost_usd || 0) - Number(r.paid_amount_usd || 0)) > 0;
@@ -41,7 +41,7 @@ export default function ReadyOrdersModal({ isOpen, onClose }: ReadyOrdersModalPr
 
     const handleSelect = (repair: any) => {
         const remaining = Number(repair.labor_cost_usd || 0) + Number(repair.parts_cost_usd || 0) - Number(repair.paid_amount_usd || 0);
-        
+
         addRepairItem({
             id: repair.id,
             customer_id: repair.customer_id,
@@ -60,7 +60,7 @@ export default function ReadyOrdersModal({ isOpen, onClose }: ReadyOrdersModalPr
     return (
         <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 sm:p-6">
             <div className="absolute inset-0 bg-background/80 backdrop-blur-md" onClick={onClose}></div>
-            
+
             <div className="relative glass-card w-full max-w-2xl overflow-hidden border-white/10 animate-fade-in-up flex flex-col max-h-[80vh]">
                 <div className="p-6 border-b border-white/5 flex items-center justify-between">
                     <div className="flex items-center gap-3">
@@ -80,9 +80,9 @@ export default function ReadyOrdersModal({ isOpen, onClose }: ReadyOrdersModalPr
                 <div className="p-6 border-b border-white/5">
                     <div className="relative group">
                         <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-finance" size={20} />
-                        <input 
-                            type="text" 
-                            placeholder="Buscar por cliente, modelo o # orden..." 
+                        <input
+                            type="text"
+                            placeholder="Buscar por cliente, modelo o # orden..."
                             className="input-field pl-12 h-12 w-full border-white/5 bg-white/5 focus:border-finance/50"
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
@@ -111,11 +111,10 @@ export default function ReadyOrdersModal({ isOpen, onClose }: ReadyOrdersModalPr
                                         key={repair.id}
                                         onClick={() => !isAlreadyInCart && handleSelect(repair)}
                                         disabled={isAlreadyInCart}
-                                        className={`w-full p-4 flex items-center justify-between rounded-xl border transition-all text-left ${
-                                            isAlreadyInCart 
-                                            ? 'opacity-50 cursor-not-allowed bg-white/2 border-white/5' 
-                                            : 'hover:bg-white/5 border-white/5 hover:border-finance/30 group'
-                                        }`}
+                                        className={`w-full p-4 flex items-center justify-between rounded-xl border transition-all text-left ${isAlreadyInCart
+                                                ? 'opacity-50 cursor-not-allowed bg-white/2 border-white/5'
+                                                : 'hover:bg-white/5 border-white/5 hover:border-finance/30 group'
+                                            }`}
                                     >
                                         <div className="flex items-center gap-4">
                                             <div className="w-10 h-10 rounded-lg bg-finance/10 flex items-center justify-center text-finance">
@@ -126,7 +125,7 @@ export default function ReadyOrdersModal({ isOpen, onClose }: ReadyOrdersModalPr
                                                 <p className="text-xs text-slate-400 capitalize">{repair.device_model}</p>
                                             </div>
                                         </div>
-                                        
+
                                         <div className="flex items-center gap-6">
                                             <div className="text-right">
                                                 <p className="text-[10px] font-black text-slate-500 uppercase">Saldo Pendiente</p>
@@ -140,7 +139,7 @@ export default function ReadyOrdersModal({ isOpen, onClose }: ReadyOrdersModalPr
                         </div>
                     )}
                 </div>
-                
+
                 <div className="p-4 bg-black/20 text-center border-t border-white/5">
                     <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">
                         Solo se muestran equipos en estado "COMPLETED" con saldo deudor

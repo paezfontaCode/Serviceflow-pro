@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Search, Package, Plus, Loader2, Wrench, Tag, ArrowRight } from 'lucide-react';
+import { Package, Plus, Loader2, Wrench, Tag, ArrowRight } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { inventoryService } from '@/services/api/inventoryService';
 import { repairService } from '@/services/api/repairService';
@@ -7,8 +7,6 @@ import { useCartStore } from '@/store/cartStore';
 import { useExchangeRateStore } from '@/store/exchangeRateStore';
 import { formatUSD, formatVES } from '@/utils/currency';
 import ReadyOrdersModal from './ReadyOrdersModal';
-
-// Removed unused SearchResultType
 
 interface ProductResult {
   type: 'product';
@@ -18,6 +16,8 @@ interface ProductResult {
   price_usd: number;
   stock: number;
   category_id: number;
+  category?: { name: string };
+  is_active?: boolean;
   description?: string;
 }
 
@@ -31,29 +31,39 @@ interface RepairResult {
   remaining_balance: number;
   status: string;
   description: string;
+  labor_cost_usd?: number;
+  parts_cost_usd?: number;
+  paid_amount_usd?: number;
+  device_model: string;
+  problem_description: string;
 }
 
 type SearchResult = ProductResult | RepairResult;
 
-export default function ProductCatalog() {
-  const [searchTerm, setSearchTerm] = useState('');
+interface ProductCatalogProps {
+  searchQuery: string;
+}
+
+export default function ProductCatalog({ searchQuery }: ProductCatalogProps) {
   const addItem = useCartStore((state) => state.addItem);
   const addRepairItem = useCartStore((state) => state.addRepairItem);
   const exchangeRate = useExchangeRateStore((state) => state.rate);
   const [isReadyOrdersModalOpen, setIsReadyOrdersModalOpen] = useState(false);
 
-  // Fetch products
-  const { data: products, isLoading: isLoadingProducts } = useQuery({
+  // Fetch products (Larger set for POS catalog to keep it responsive without complex pagination)
+  const { data: pagination, isLoading: isLoadingProducts } = useQuery({
     queryKey: ['products'],
-    queryFn: inventoryService.getProducts,
+    queryFn: () => inventoryService.getProducts(1, 100),
   });
+
+  const products = pagination?.items || [];
 
   // Fetch completed repairs (ready for pickup)
   const { data: repairs, isLoading: isLoadingRepairs } = useQuery({
     queryKey: ['completedRepairs'],
     queryFn: async () => {
-      const allRepairs = await repairService.getWorkOrders();
-      return allRepairs.filter(r => {
+      const response = await repairService.getWorkOrders(1, 100);
+      return response.items.filter(r => {
         const finalCost = (r.labor_cost_usd || 0) + (r.parts_cost_usd || 0);
         const paid = r.paid_amount_usd || 0;
         const remaining = finalCost - paid;
@@ -70,30 +80,26 @@ export default function ProductCatalog() {
   // Filters
   const filteredProducts = products?.filter((product) => {
     // SECURITY: Filter out 'Repuestos' category strictly.
-    // The user wants to see "Accesorios" and "Servicios", but NOT spare parts like "Pantallas".
-    // We assume category name check is sufficient if established in DB.
-    // Also check if name indicates a spare part (fallback).
     const categoryName = product.category?.name?.toLowerCase() || '';
     const isSparePart = categoryName === 'repuestos' || categoryName === 'parts' || categoryName === 'repuesto';
-    
+
     if (isSparePart) return false;
 
-    const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                         product.sku?.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSearch = product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      product.sku?.toLowerCase().includes(searchQuery.toLowerCase());
     return matchesSearch && product.is_active;
   }) || [];
 
-  // Filter repairs (for the main grid - though we now have a modal, we keep it as fallback or remove if redundant)
-  // Actually, the user wants a MODAL for "Load Ready Order". 
-  // I will keep the repairs in the main grid ONLY if searched directly, but the main entry is the modal.
-  const filteredRepairs = Boolean(searchTerm) ? repairs?.filter((repair) => {
-    const searchLower = searchTerm.toLowerCase();
+  // Filter repairs logic - Only show if explicit search or keep hidden?
+  // The original code filtered repairs based on search term if present.
+  const filteredRepairs = Boolean(searchQuery) ? repairs?.filter((repair) => {
+    const searchLower = searchQuery.toLowerCase();
     const customerName = repair.customer_name || 'Cliente';
     const deviceModel = repair.device_model || '';
-    
+
     return customerName.toLowerCase().includes(searchLower) ||
-           deviceModel.toLowerCase().includes(searchLower) ||
-           repair.id.toString().includes(searchTerm);
+      deviceModel.toLowerCase().includes(searchLower) ||
+      repair.id.toString().includes(searchQuery.replace('#', '')); // Handle #ID search
   }) || [] : [];
 
   // Combine results
@@ -106,7 +112,7 @@ export default function ProductCatalog() {
     stock: p.inventory_quantity,
     category_id: p.category_id || 0,
     description: p.description
-  }));
+  } as ProductResult)); // Explicit cast to avoid strict type mismatch if API types differ slightly
 
   filteredRepairs.forEach(r => {
     const finalCost = (r.labor_cost_usd || 0) + (r.parts_cost_usd || 0);
@@ -123,45 +129,31 @@ export default function ProductCatalog() {
       remaining_balance: remaining,
       status: r.status,
       description: r.problem_description
-    });
+    } as RepairResult);
   });
 
   return (
     <div className="h-full flex flex-col space-y-6">
-      {/* Omnichannel Search Bar */}
-      <div className="flex flex-col gap-4">
-        <div className="relative flex-1 group">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-primary-400 transition-colors" size={20} />
-          <input 
-            type="text" 
-            placeholder="Buscar productos, servicios o # de orden..." 
-            className="input-field pl-12 h-14 text-lg w-full"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
+      {/* Header Stats & Import Button (Search moved to Global Header) */}
+      <div className="flex gap-3 items-center justify-between">
+        <div className="flex items-center gap-2 px-4 py-2 glass rounded-xl border border-white/5">
+          <div className="w-2 h-2 rounded-full bg-primary-500"></div>
+          <span className="text-xs font-bold text-slate-400">{filteredProducts.length} Productos</span>
         </div>
-        
-        {/* Quick Stats & Import Button */}
-        <div className="flex gap-3 items-center">
-          <div className="flex items-center gap-2 px-4 py-2 glass rounded-xl border border-white/5">
-            <div className="w-2 h-2 rounded-full bg-primary-500"></div>
-            <span className="text-xs font-bold text-slate-400">{filteredProducts.length} Productos</span>
-          </div>
-          
-          <button 
-            onClick={() => setIsReadyOrdersModalOpen(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-finance/20 hover:bg-finance/30 text-finance border border-finance/30 rounded-xl transition-all group"
-          >
-            <Wrench size={16} className="group-hover:rotate-12 transition-transform" />
-            <span className="text-xs font-bold">{repairs?.length || 0} Órdenes Listas</span>
-            <ArrowRight size={14} className="group-hover:translate-x-1 transition-transform" />
-          </button>
-        </div>
+
+        <button
+          onClick={() => setIsReadyOrdersModalOpen(true)}
+          className="flex items-center gap-2 px-4 py-2 bg-finance/20 hover:bg-finance/30 text-finance border border-finance/30 rounded-xl transition-all group"
+        >
+          <Wrench size={16} className="group-hover:rotate-12 transition-transform" />
+          <span className="text-xs font-bold">{repairs?.length || 0} Órdenes Listas</span>
+          <ArrowRight size={14} className="group-hover:translate-x-1 transition-transform" />
+        </button>
       </div>
 
-      <ReadyOrdersModal 
-        isOpen={isReadyOrdersModalOpen} 
-        onClose={() => setIsReadyOrdersModalOpen(false)} 
+      <ReadyOrdersModal
+        isOpen={isReadyOrdersModalOpen}
+        onClose={() => setIsReadyOrdersModalOpen(false)}
       />
 
       {/* Results Grid */}
@@ -179,7 +171,7 @@ export default function ProductCatalog() {
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
             {searchResults.map((result) => (
               result.type === 'product' ? (
-                <ProductCard 
+                <ProductCard
                   key={`product-${result.id}`}
                   product={result}
                   exchangeRate={exchangeRate}
@@ -193,7 +185,7 @@ export default function ProductCatalog() {
                   })}
                 />
               ) : (
-                <RepairCard 
+                <RepairCard
                   key={`repair-${result.id}`}
                   repair={result}
                   exchangeRate={exchangeRate}
@@ -231,13 +223,13 @@ function ProductCard({ product, exchangeRate, onAdd }: { product: ProductResult,
         </div>
         <h4 className="text-white font-bold text-lg leading-tight mb-1 group-hover:text-primary-400 transition-colors line-clamp-2">{product.name}</h4>
         <p className="text-[10px] text-slate-500 font-mono">{product.sku || 'SIN SKU'}</p>
-        
+
         <div className="absolute bottom-5 left-5 right-5 flex items-end justify-between">
           <div>
             <p className="text-2xl font-black text-white">{formatUSD(product.price_usd)}</p>
             <p className="text-xs font-bold text-finance uppercase italic tracking-tighter">≈ {formatVES(product.price_usd * exchangeRate)}</p>
           </div>
-          <button 
+          <button
             onClick={onAdd}
             disabled={product.stock <= 0}
             className="w-12 h-12 bg-primary-600 rounded-2xl flex items-center justify-center text-white shadow-glow hover:bg-primary-500 hover:scale-110 active:scale-95 transition-all disabled:opacity-50 disabled:grayscale disabled:hover:scale-100"
@@ -268,14 +260,14 @@ function RepairCard({ repair, exchangeRate, onAdd }: { repair: RepairResult, exc
         </h4>
         <p className="text-[10px] text-slate-500">#{repair.id.toString().padStart(5, '0')} • {repair.customer_name}</p>
         <p className="text-xs text-slate-400 line-clamp-1 mt-1">{repair.description}</p>
-        
+
         <div className="absolute bottom-5 left-5 right-5 flex items-end justify-between">
           <div>
             <p className="text-[10px] font-black text-slate-500 uppercase">Saldo Pendiente</p>
             <p className="text-2xl font-black text-finance">{formatUSD(repair.remaining_balance)}</p>
             <p className="text-xs font-bold text-slate-500 italic tracking-tighter">≈ {formatVES(repair.remaining_balance * exchangeRate)}</p>
           </div>
-          <button 
+          <button
             onClick={onAdd}
             className="w-12 h-12 bg-finance rounded-2xl flex items-center justify-center text-white shadow-low hover:bg-amber-500 hover:scale-110 active:scale-95 transition-all"
           >

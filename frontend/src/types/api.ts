@@ -57,4 +57,32 @@ export interface SaleRead {
     created_at: string;
     items: SaleItemRead[];
     notes?: string;
+    // Derived fields for history
+    customer_name?: string;
+    paid_amount?: number;
+    pending_amount?: number;
+}
+
+export interface PaginatedResponse<T> {
+    items: T[];
+    total: number;
+    page: number;
+    size: number;
+    pages: number;
+}
+
+export interface WorkOrderCreate {
+    customer_id: number;
+    device_model: string;
+    device_imei?: string;
+    problem_description: string;
+    priority: 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT';
+    service_type: 'SOFTWARE' | 'HARDWARE' | 'REVISION';
+    quick_service_tag?: string;
+    repair_type: 'software' | 'hardware' | 'service';
+    estimated_delivery?: string;
+    labor_cost_usd: number;
+    items_to_consume?: { product_id: number; quantity: number }[];
+    missing_part_note?: string;
+    status?: string;
 }

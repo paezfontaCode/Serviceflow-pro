@@ -13,7 +13,8 @@ import {
   LogOut,
   Menu,
   X,
-  CreditCard
+  CreditCard,
+  History
 } from 'lucide-react';
 import PermissionGuard from '../components/PermissionGuard';
 
@@ -31,6 +32,7 @@ export default function Layout() {
   const navItems = [
     { to: '/dashboard', icon: LayoutDashboard, label: t('sidebar.dashboard'), roles: ['admin', 'vendedor', 'tecnico'] },
     { to: '/pos', icon: ShoppingCart, label: t('sidebar.sales'), roles: ['admin', 'vendedor'] },
+    { to: '/sales-history', icon: History, label: t('sidebar.history'), roles: ['admin', 'vendedor'] },
     { to: '/repairs', icon: Wrench, label: t('sidebar.repairs'), roles: ['admin', 'tecnico'] },
     { to: '/inventory', icon: Package, label: t('sidebar.inventory'), roles: ['admin', 'vendedor'] },
     { to: '/finance', icon: CreditCard, label: t('sidebar.finance'), roles: ['admin'] },

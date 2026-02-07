@@ -2,24 +2,41 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func, case
 from ..models.sale import Sale, SaleItem
 from ..models.finance import Expense, AccountReceivable, ExchangeRate
-from ..models.inventory import InventoryLog, Product
+from ..models.inventory import InventoryLog, Product, Inventory
 from decimal import Decimal
 from datetime import date, datetime
 
 class ReportService:
     @staticmethod
     def get_profit_loss(db: Session, start_date: date, end_date: date, target_currency: str = "USD"):
-        # 1. Revenue
-        revenue_usd = db.query(func.sum(Sale.total_usd)).filter(
+        from ..models.repair import Repair, RepairItem
+        # 1. Revenue (Accrual: All sales + all repair labor)
+        sales_revenue = db.query(func.sum(Sale.total_usd)).filter(
             func.date(Sale.created_at) >= start_date,
             func.date(Sale.created_at) <= end_date
         ).scalar() or Decimal(0)
         
-        # 2. COGS (Cost of Goods Sold)
-        cogs_usd = db.query(func.sum(SaleItem.quantity * SaleItem.unit_cost_usd)).join(Sale).filter(
+        repair_revenue = db.query(func.sum(Repair.labor_cost_usd)).filter(
+            func.date(Repair.created_at) >= start_date,
+            func.date(Repair.created_at) <= end_date,
+            Repair.status != "CANCELLED"
+        ).scalar() or Decimal(0)
+        
+        revenue_usd = sales_revenue + repair_revenue
+        
+        # 2. COGS (Cost of Goods Sold - Products + Repair Parts)
+        product_cogs = db.query(func.sum(SaleItem.quantity * SaleItem.unit_cost_usd)).join(Sale).filter(
             func.date(Sale.created_at) >= start_date,
             func.date(Sale.created_at) <= end_date
         ).scalar() or Decimal(0)
+        
+        repair_cogs = db.query(func.sum(RepairItem.quantity * RepairItem.unit_cost_usd)).join(Repair).filter(
+            func.date(Repair.created_at) >= start_date,
+            func.date(Repair.created_at) <= end_date,
+            Repair.status != "CANCELLED"
+        ).scalar() or Decimal(0)
+        
+        cogs_usd = product_cogs + repair_cogs
         
         # 3. Expenses
         expenses_usd = db.query(func.sum(Expense.amount_usd)).filter(
@@ -154,3 +171,27 @@ class ReportService:
         # Sort by date
         kardex.sort(key=lambda x: x["date"], reverse=True)
         return kardex
+
+    @staticmethod
+    def get_replenishment_report(db: Session):
+        """Identifica productos que están por debajo del stock mínimo."""
+        results = db.query(
+            Product.id,
+            Product.sku,
+            Product.name,
+            Inventory.quantity,
+            Inventory.min_stock
+        ).join(Inventory, Product.id == Inventory.product_id)\
+         .filter(Inventory.quantity <= Inventory.min_stock)\
+         .order_by(Inventory.quantity.asc()).all()
+         
+        return [
+            {
+                "id": r.id,
+                "sku": r.sku,
+                "name": r.name,
+                "quantity": r.quantity,
+                "min_stock": r.min_stock,
+                "needed": max(0, r.min_stock * 2 - r.quantity) # Recomendación simple
+            } for r in results
+        ]

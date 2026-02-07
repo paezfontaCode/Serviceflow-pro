@@ -17,6 +17,11 @@ export const salesService = {
     return data;
   },
 
+  getHistory: async (params: { start_date?: string; end_date?: string; customer_id?: number; payment_status?: string }) => {
+    const { data } = await client.get<{ sales: SaleRead[]; summary: any }>('sales/history', { params });
+    return data;
+  },
+
   sendWhatsApp: async (id: number) => {
     const { data } = await client.post(`sales/${id}/send-whatsapp`);
     return data;

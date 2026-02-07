@@ -6,6 +6,8 @@ export interface FinanceSummary {
   morosos_count: number;
   cash_in_session: number;
   cash_in_session_ves: number;
+  total_sales_today: number;
+  total_sales_today_ves: number;
   exchange_rate: number;
   session_active: boolean;
   session_code?: string;

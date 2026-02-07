@@ -127,7 +127,9 @@ export default function Settings() {
     };
 
     const handleUpdateRate = async () => {
+        // We use parseLocaleNumber which now handles commas and dots better
         const parsedRate = parseLocaleNumber(newRate);
+
         if (!newRate || parsedRate <= 0) {
             toast.error('Ingresa una tasa válida');
             return;
@@ -141,6 +143,7 @@ export default function Settings() {
             });
             await loadInitialData();
             setIsEditingRate(false);
+            setNewRate(''); // Clear after success
             toast.success('Tasa actualizada correctamente', { id: toastId });
         } catch (error) {
             toast.error('Error al actualizar la tasa');
@@ -382,7 +385,7 @@ export default function Settings() {
                                         ) : (
                                             <button
                                                 onClick={() => {
-                                                    setNewRate(currentRate?.rate || '');
+                                                    setNewRate(currentRate?.rate ? String(currentRate.rate) : '');
                                                     setIsEditingRate(true);
                                                 }}
                                                 className="w-10 h-10 rounded-full bg-primary-500/10 text-primary-400 flex items-center justify-center hover:bg-primary-500 hover:text-white transition-all shadow-glow-sm"
@@ -530,8 +533,8 @@ export default function Settings() {
                                     <button
                                         onClick={() => i18n.changeLanguage('es')}
                                         className={`flex items-center justify-between p-4 rounded-xl transition-all border ${i18n.language.startsWith('es')
-                                                ? 'bg-primary-500/10 border-primary-500 text-white shadow-glow-sm'
-                                                : 'bg-white/5 border-white/5 text-slate-400 hover:bg-white/10 hover:text-white'
+                                            ? 'bg-primary-500/10 border-primary-500 text-white shadow-glow-sm'
+                                            : 'bg-white/5 border-white/5 text-slate-400 hover:bg-white/10 hover:text-white'
                                             }`}
                                     >
                                         <div className="flex items-center gap-3">
@@ -543,8 +546,8 @@ export default function Settings() {
                                     <button
                                         onClick={() => i18n.changeLanguage('en')}
                                         className={`flex items-center justify-between p-4 rounded-xl transition-all border ${i18n.language.startsWith('en')
-                                                ? 'bg-primary-500/10 border-primary-500 text-white shadow-glow-sm'
-                                                : 'bg-white/5 border-white/5 text-slate-400 hover:bg-white/10 hover:text-white'
+                                            ? 'bg-primary-500/10 border-primary-500 text-white shadow-glow-sm'
+                                            : 'bg-white/5 border-white/5 text-slate-400 hover:bg-white/10 hover:text-white'
                                             }`}
                                     >
                                         <div className="flex items-center gap-3">

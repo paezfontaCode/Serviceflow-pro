@@ -40,6 +40,11 @@ class SaleRead(SaleBase):
     created_at: datetime
     items: List[SaleItemRead]
     
+    # Derived fields
+    paid_amount: Optional[Decimal] = None
+    pending_amount: Optional[Decimal] = None
+    customer_name: Optional[str] = None
+    
     class Config:
         from_attributes = True
 class SaleReturnItemRead(BaseModel):

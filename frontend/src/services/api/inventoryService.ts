@@ -1,12 +1,19 @@
 import { client } from './client';
-import { ProductRead } from '@/types/api';
+import { ProductRead, PaginatedResponse } from '@/types/api';
 
 export const inventoryService = {
-  getProducts: async () => {
-    const { data } = await client.get<ProductRead[]>('inventory/products');
+  getProducts: async (page = 1, size = 20, search?: string, categoryId?: number) => {
+    const { data } = await client.get<PaginatedResponse<ProductRead>>('inventory/products', {
+      params: {
+        page,
+        size,
+        search,
+        category_id: categoryId
+      }
+    });
     return data;
   },
-  
+
   getProduct: async (id: number) => {
     const { data } = await client.get<ProductRead>(`inventory/products/${id}`);
     return data;
@@ -49,7 +56,7 @@ export const inventoryService = {
 
   exportProducts: async () => {
     const response = await client.get('inventory/export-csv', {
-        responseType: 'blob'
+      responseType: 'blob'
     });
     return response.data;
   }

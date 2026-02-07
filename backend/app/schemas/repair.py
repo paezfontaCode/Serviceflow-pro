@@ -38,6 +38,7 @@ class RepairBase(BaseModel):
     repair_type: str = "service"
     estimated_cost_usd: Optional[Decimal] = None
     labor_cost_usd: Optional[Decimal] = 0
+    missing_part_note: Optional[str] = None
 
 # Schema for parts to consume during creation
 class ItemToConsume(BaseModel):
@@ -80,6 +81,9 @@ class RepairRead(RepairBase):
     updated_at: Optional[datetime] = None
     delivered_at: Optional[datetime] = None
     warranty_expiration: Optional[datetime] = None
+    is_warranty_active: bool = False
+    is_recurring: bool = False
+    previous_repair_id: Optional[int] = None
     logs: List[RepairLogRead] = []
     items: List[RepairItemRead] = []
     

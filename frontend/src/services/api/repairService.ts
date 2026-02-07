@@ -1,4 +1,5 @@
 import { client } from './client';
+import { PaginatedResponse } from '@/types/api';
 
 export interface WorkOrderRead {
   id: number;
@@ -23,8 +24,15 @@ export interface WorkOrderRead {
 
 
 export const repairService = {
-  getWorkOrders: async () => {
-    const { data } = await client.get<WorkOrderRead[]>('repairs/');
+  getWorkOrders: async (page = 1, size = 100, excludeArchived: boolean = false, search?: string) => {
+    const { data } = await client.get<PaginatedResponse<WorkOrderRead>>('repairs/', {
+      params: {
+        page,
+        size,
+        exclude_archived: excludeArchived,
+        search
+      }
+    });
     return data;
   },
 
@@ -80,6 +88,17 @@ export const repairService = {
     const link = document.createElement('a');
     link.href = url;
     link.setAttribute('download', `recibo_reparacion_${id}.pdf`);
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+  },
+
+  getLabel: async (id: number) => {
+    const response = await client.get(`repairs/${id}/label`, { responseType: 'blob' });
+    const url = window.URL.createObjectURL(new Blob([response.data]));
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `etiqueta_${id}.pdf`);
     document.body.appendChild(link);
     link.click();
     link.remove();

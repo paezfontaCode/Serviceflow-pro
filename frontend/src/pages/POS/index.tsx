@@ -1,22 +1,27 @@
 import { useState, useEffect } from 'react';
-import { RefreshCw, Wallet, ArrowRight, Loader2 } from 'lucide-react';
+import { Wallet, Loader2, Maximize2, Minimize2, Plus, ArrowRight } from 'lucide-react';
 import ProductCatalog from './components/ProductCatalog';
 import CartPanel from './components/CartPanel';
 import PaymentModal from './components/PaymentModal';
 import WorkOrderForm from '../Repairs/components/WorkOrderForm';
-import { Plus } from 'lucide-react';
-import { useExchangeRateStore } from '@/store/exchangeRateStore';
+import OmniSearch from './components/OmniSearch';
 import { useFinanceStore } from '@/store/financeStore';
-import { formatUSD, formatVES, formatExchangeRate } from '@/utils/currency';
+import { useExchangeRateStore } from '@/store/exchangeRateStore';
 import { toast } from 'sonner';
+import { CurrencySwitch } from '@/components/common/CurrencySwitch';
+import { POSLayout } from './components/POSLayout';
+import { formatUSD, formatVES } from '@/utils/currency';
 
 export default function POS() {
     const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
     const [isWorkOrderOpen, setIsWorkOrderOpen] = useState(false);
     const [isOpenSessionModalOpen, setIsOpenSessionModalOpen] = useState(false);
     const [isCloseSessionModalOpen, setIsCloseSessionModalOpen] = useState(false);
-    const { rate, fetchRate } = useExchangeRateStore();
+    const [isFullscreen, setIsFullscreen] = useState(false);
+    const [globalSearch, setGlobalSearch] = useState('');
+
     const { activeSession, isLoading, checkActiveSession, openSession, closeSession } = useFinanceStore();
+    const { rate } = useExchangeRateStore();
 
     useEffect(() => {
         checkActiveSession();
@@ -30,65 +35,90 @@ export default function POS() {
         }
     }, [activeSession, isLoading]);
 
-    return (
-        <div className="h-[calc(100vh-120px)] flex flex-col space-y-6">
-            {/* POS Header / Stats */}
-            <div className="flex items-center justify-between glass-card p-4 px-6 border-white/5">
-                <div className="flex items-center gap-6">
-                    <div className="flex items-center gap-2">
-                        <div className={`w-2 h-2 rounded-full ${activeSession ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'}`}></div>
-                        <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">
-                            {activeSession ? `Caja Abierta: #${activeSession.session_code.split('-').pop()}` : 'Caja Cerrada'}
-                        </span>
-                    </div>
-                    <div className="h-4 w-px bg-white/10"></div>
-                    <div className="flex items-center gap-3 group text-center sm:text-left">
-                        <div className="flex flex-col">
-                            <span className="text-[10px] text-slate-500 font-bold uppercase">Tasa del Día</span>
-                            <span className="text-sm font-black text-finance">1 USD = {formatExchangeRate(rate)} Bs.</span>
-                        </div>
-                        <button
-                            onClick={() => fetchRate()}
-                            className="p-1.5 rounded-lg hover:bg-white/5 text-slate-500 hover:text-finance transition-all group-hover:rotate-180 duration-500"
-                        >
-                            <RefreshCw size={14} />
-                        </button>
-                    </div>
-                </div>
+    const toggleFullscreen = () => {
+        if (!document.fullscreenElement) {
+            document.documentElement.requestFullscreen();
+            setIsFullscreen(true);
+        } else {
+            if (document.exitFullscreen) {
+                document.exitFullscreen();
+                setIsFullscreen(false);
+            }
+        }
+    };
 
-                <div className="flex items-center gap-4">
-                    {activeSession && (
+    const handleOmniSearch = (query: string) => {
+        setGlobalSearch(query);
+    };
+
+    return (
+        <POSLayout
+            header={
+                <div className="flex items-center justify-between glass-card p-3 px-6 border-white/5 gap-6">
+                    {/* Left: Session Info & Rate */}
+                    <div className="flex items-center gap-6 shrink-0">
+                        <div className="flex items-center gap-3">
+                            <div className={`w-2.5 h-2.5 rounded-full ${activeSession ? 'bg-emerald-500 shadow-lg shadow-emerald-500/20 animate-pulse' : 'bg-rose-500'}`}></div>
+                            <div className="flex flex-col">
+                                <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Estado de Caja</span>
+                                <span className="text-xs font-black text-slate-300">
+                                    {activeSession ? `ABIERTA #${activeSession.session_code.split('-').pop()}` : 'CERRADA'}
+                                </span>
+                            </div>
+                        </div>
+
+                        <div className="h-8 w-px bg-white/5"></div>
+
+                        <CurrencySwitch />
+                    </div>
+
+                    {/* Center: OmniSearch */}
+                    <div className="flex-1 max-w-xl">
+                        <OmniSearch
+                            onSearch={handleOmniSearch}
+                            placeholder="Buscar productos, Cód. Barras o #Ticket..."
+                        />
+                    </div>
+
+                    {/* Right: Actions */}
+                    <div className="flex items-center gap-3 shrink-0">
+                        {activeSession && (
+                            <button
+                                onClick={() => setIsCloseSessionModalOpen(true)}
+                                className="flex items-center gap-2 bg-rose-500/10 text-rose-400 hover:bg-rose-500 hover:text-white px-3 py-2 rounded-xl border border-rose-500/20 transition-all text-[10px] font-black uppercase tracking-widest group"
+                            >
+                                <Wallet size={14} className="group-hover:scale-110 transition-transform" />
+                                <span className="hidden sm:inline">Cerrar Caja</span>
+                            </button>
+                        )}
+
                         <button
-                            onClick={() => setIsCloseSessionModalOpen(true)}
-                            className="flex items-center gap-2 bg-rose-500/10 text-rose-400 hover:bg-rose-500 hover:text-white px-4 py-2 rounded-xl border border-rose-500/20 transition-all text-xs font-black uppercase tracking-widest"
+                            onClick={() => setIsWorkOrderOpen(true)}
+                            className="flex items-center gap-2 bg-primary-500/10 text-primary-400 hover:bg-primary-500 hover:text-white px-3 py-2 rounded-xl border border-primary-500/20 transition-all text-[10px] font-black uppercase tracking-widest group"
                         >
-                            <Wallet size={16} />
-                            <span>Cerrar Caja</span>
+                            <Plus size={14} className="group-hover:rotate-90 transition-transform" />
+                            <span className="hidden sm:inline">Nueva Orden</span>
                         </button>
-                    )}
-                    <button
-                        onClick={() => setIsWorkOrderOpen(true)}
-                        className="flex items-center gap-2 bg-primary-500/10 text-primary-400 hover:bg-primary-500 hover:text-white px-4 py-2 rounded-xl border border-primary-500/20 transition-all text-xs font-black uppercase tracking-widest"
-                    >
-                        <Plus size={16} />
-                        <span>Nueva Orden</span>
-                    </button>
-                    <div className="w-10 h-10 rounded-full bg-slate-800 border border-white/10 flex items-center justify-center text-primary-400 font-black">
-                        POS
+
+                        <button
+                            onClick={toggleFullscreen}
+                            className="w-9 h-9 flex items-center justify-center rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white transition-colors border border-white/5"
+                            title="Pantalla Completa"
+                        >
+                            {isFullscreen ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
+                        </button>
                     </div>
                 </div>
+            }
+        >
+            {/* Products Grid */}
+            <div className="flex-[0.65] min-w-0 h-full">
+                <ProductCatalog searchQuery={globalSearch} />
             </div>
 
-            {/* Main POS Interface */}
-            <div className="flex-1 flex gap-6 min-h-0">
-                <div className="flex-[0.65] min-w-0">
-                    <ProductCatalog />
-                </div>
-                <div className="flex-[0.35] glass-card px-0 overflow-hidden border-white/5 flex flex-col">
-                    <div className="flex-1 p-6 flex flex-col min-h-0">
-                        <CartPanel onCheckout={() => setIsPaymentModalOpen(true)} />
-                    </div>
-                </div>
+            {/* Cart Sidebar */}
+            <div className="flex-[0.35] glass-card px-0 overflow-hidden border-white/5 flex flex-col h-full">
+                <CartPanel onCheckout={() => setIsPaymentModalOpen(true)} />
             </div>
 
             {/* Modals */}
@@ -114,9 +144,11 @@ export default function POS() {
                 isOpen={isWorkOrderOpen}
                 onClose={() => setIsWorkOrderOpen(false)}
             />
-        </div>
+        </POSLayout>
     );
 }
+
+// ... Keep existing OpenSessionModal and CloseSessionModal for now, can extract later if needed
 
 function OpenSessionModal({ isOpen, onOpen }: { isOpen: boolean, onOpen: (amount: number, amountVes: number) => Promise<void> }) {
     const [amount, setAmount] = useState('0');
@@ -208,7 +240,7 @@ function CloseSessionModal({
     isOpen: boolean,
     onClose: () => void,
     onConfirm: (amount: number, amountVes: number, notes?: string) => Promise<void>,
-    activeSession: any,
+    activeSession: { session_code: string; expected_amount: number; expected_amount_ves: number } | null,
     rate: number
 }) {
     const [actualAmount, setActualAmount] = useState('0');

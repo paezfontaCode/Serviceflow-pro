@@ -24,6 +24,7 @@ import { toast } from 'sonner';
 import { ticketService } from '@/services/ticketService';
 import CustomerQuickModal from '@/components/CustomerQuickModal';
 import WhatsAppButton from '@/components/WhatsAppButton';
+import PagoMovilForm from './PagoMovilForm';
 
 interface PaymentModalProps {
     isOpen: boolean;
@@ -62,6 +63,7 @@ export default function PaymentModal({ isOpen, onClose }: PaymentModalProps) {
     const [showCustomerDropdown, setShowCustomerDropdown] = useState(false);
     const [isPartialPayment, setIsPartialPayment] = useState(false);
     const [showCustomerModal, setShowCustomerModal] = useState(false);
+    const [pagoMovilData, setPagoMovilData] = useState<{ reference: string, phone?: string }>({ reference: '' });
     const queryClient = useQueryClient();
 
     // Fetch customers
@@ -79,8 +81,9 @@ export default function PaymentModal({ isOpen, onClose }: PaymentModalProps) {
     const hasPendingDebt = pendingDebt > 0.01;
 
     // Validation
+    const hasExistingDebt = (selectedCustomer?.current_debt || 0) > 0.01;
     const needsCustomer = hasPendingDebt && isPartialPayment;
-    const canProcess = items.length > 0 && (!needsCustomer || selectedCustomerId !== null);
+    const canProcess = items.length > 0 && !hasExistingDebt && (!needsCustomer || selectedCustomerId !== null);
 
     useEffect(() => {
         setAmountPaid(currency === 'USD' ? totalUSD.toFixed(2) : totalVES.toFixed(2));
@@ -102,9 +105,21 @@ export default function PaymentModal({ isOpen, onClose }: PaymentModalProps) {
             return;
         }
 
+        if (paymentMethod === 'transfer' && !pagoMovilData.reference) {
+            toast.error('Debes ingresar los últimos 4 dígitos de la referencia');
+            return;
+        }
+
         setIsProcessing(true);
 
         try {
+            // Append Pago Movil data to notes if applicable
+            let finalNotes = notes;
+            if (paymentMethod === 'transfer') {
+                const pmNote = `[PAGO MÓVIL] Ref: ${pagoMovilData.reference} ${pagoMovilData.phone ? `- Tel: ${pagoMovilData.phone}` : ''}`;
+                finalNotes = finalNotes ? `${pmNote}\n${finalNotes}` : pmNote;
+            }
+
             const saleData: SaleCreate & { repair_ids?: number[], amount_paid?: number } = {
                 customer_id: selectedCustomerId || undefined,
                 items: productItems.map(item => ({
@@ -115,7 +130,7 @@ export default function PaymentModal({ isOpen, onClose }: PaymentModalProps) {
                 payment_method: paymentMethod,
                 payment_currency: currency,
                 amount_paid: amountPaidUSD,
-                notes: notes || undefined,
+                notes: finalNotes || undefined,
             };
 
             const response = await salesService.createSale(saleData);
@@ -386,6 +401,20 @@ export default function PaymentModal({ isOpen, onClose }: PaymentModalProps) {
                                     <Plus size={20} />
                                 </button>
                             </div>
+
+                            {/* Debt Alert */}
+                            {selectedCustomer && hasExistingDebt && (
+                                <div className="p-4 rounded-xl bg-rose-500/10 border border-rose-500/20 flex gap-3 animate-shake">
+                                    <AlertTriangle className="text-rose-500 flex-shrink-0" size={20} />
+                                    <div>
+                                        <p className="text-xs font-black text-rose-500 uppercase tracking-tight">Venta Bloqueada: Deuda Pendiente</p>
+                                        <p className="text-sm font-medium text-slate-300">
+                                            Este cliente debe <span className="text-rose-400 font-bold">{formatUSD(selectedCustomer.current_debt || 0)}</span>.
+                                            Debe saldar su cuenta antes de realizar nuevas compras.
+                                        </p>
+                                    </div>
+                                </div>
+                            )}
                         </div>
 
                         {/* Payment Method */}
@@ -432,6 +461,16 @@ export default function PaymentModal({ isOpen, onClose }: PaymentModalProps) {
                             </div>
                         </div>
 
+                        {/* Pago Movil Form */}
+                        {paymentMethod === 'transfer' && (
+                            <PagoMovilForm
+                                amount={parseFloat(amountPaid) || 0}
+                                currency={currency}
+                                rate={activeRate}
+                                onChange={setPagoMovilData}
+                            />
+                        )}
+
                         {/* Pending Debt Display */}
                         {hasPendingDebt && (
                             <div className={`p-4 rounded-xl border flex items-start gap-3 ${needsCustomer && !selectedCustomerId ? 'bg-rose-500/10 border-rose-500/30' : 'bg-amber-500/10 border-amber-500/30'}`}>
@@ -462,9 +501,11 @@ export default function PaymentModal({ isOpen, onClose }: PaymentModalProps) {
                             </div>
                         )}
 
-                        {/* Notes */}
+                        {/* Notes - Only show notes textarea if NOT Pago Movil (to avoid confusion) or keep it optional? 
+                            Let's keep it but maybe minimize it or label it specifically 
+                         */}
                         <div className="space-y-3">
-                            <h3 className="text-xs font-bold text-white uppercase tracking-widest">Notas / Referencia</h3>
+                            <h3 className="text-xs font-bold text-white uppercase tracking-widest">Notas Adicionales</h3>
                             <textarea
                                 value={notes}
                                 onChange={(e) => setNotes(e.target.value)}

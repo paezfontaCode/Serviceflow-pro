@@ -10,9 +10,10 @@ ENV VITE_API_URL=$VITE_API_URL
 # Copy package files
 COPY package*.json ./
 
-# Install dependencies with cache mount
-RUN --mount=type=cache,target=/root/.npm \
-    npm ci --prefer-offline
+# Install dependencies
+# Install dependencies
+ENV NODE_ENV=development
+RUN npm install
 
 # Copy source code
 COPY . .

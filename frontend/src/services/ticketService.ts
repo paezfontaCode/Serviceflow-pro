@@ -1,24 +1,24 @@
 import { formatUSD, formatVES } from '@/utils/currency';
 
 interface ServiceItem {
-    id: number;
-    description: string;
-    amount: number;
+  id: number;
+  description: string;
+  amount: number;
 }
 
 interface TicketData {
-    orderId: string | number;
-    customerName: string;
-    items: Array<{ name: string; quantity: number; price: number }>;
-    services?: ServiceItem[];
-    totalUsd: number;
-    amountPaid?: number;
-    pendingDebt?: number;
-    exchangeRate: number;
-    paymentMethod: string;
-    date: string;
-    entryDate?: string;
-    warrantyExpiration?: string;
+  orderId: string | number;
+  customerName: string;
+  items: Array<{ name: string; quantity: number; price: number }>;
+  services?: ServiceItem[];
+  totalUsd: number;
+  amountPaid?: number;
+  pendingDebt?: number;
+  exchangeRate: number;
+  paymentMethod: string;
+  date: string;
+  entryDate?: string;
+  warrantyExpiration?: string;
 }
 
 export const ticketService = {
@@ -28,7 +28,7 @@ export const ticketService = {
     const amountPaidVes = amountPaidUsd * data.exchangeRate;
     const pendingDebt = data.pendingDebt ?? 0;
     const pendingDebtVes = pendingDebt * data.exchangeRate;
-    
+
     const html = `
       <html>
         <head>
@@ -121,11 +121,11 @@ export const ticketService = {
 
             ${pendingDebt > 0 ? `
               <div class="separator"></div>
-              <div class="item pending">
+              <div class="item pending" style="font-size: 14px; border: 1px solid #000; padding: 4px;">
                 <span>SALDO PENDIENTE:</span>
                 <span>${formatUSD(pendingDebt)}</span>
               </div>
-              <div class="item pending">
+              <div class="item pending" style="text-align: right; margin-top: 2px;">
                 <span></span>
                 <span>${formatVES(pendingDebtVes)}</span>
               </div>
@@ -168,7 +168,7 @@ export const ticketService = {
 
   generateReceptionTicket: (data: { orderId: number | string, customerName: string, device: string, problem: string, estimatedCost: number, exchangeRate: number, date: string }) => {
     const costVes = data.estimatedCost * data.exchangeRate;
-    
+
     const html = `
       <html>
         <head>

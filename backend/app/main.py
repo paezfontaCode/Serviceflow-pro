@@ -47,6 +47,27 @@ async def lifespan(app: FastAPI):
     from .services.audit_service import register_audit_listeners
     register_audit_listeners()
     
+    # Initialize Currency Auto-Update
+    from .services.currency_service import CurrencyService
+    from .core.database import SessionLocal
+    import asyncio
+    
+    async def schedule_currency_updates():
+        while True:
+            try:
+                logger.info("Running scheduled currency update")
+                db = SessionLocal()
+                try:
+                    await CurrencyService.update_official_rate(db)
+                finally:
+                    db.close()
+            except Exception as e:
+                logger.error(f"Error in scheduled currency update: {e}")
+            # Wait 4 hours (4 * 3600 seconds)
+            await asyncio.sleep(4 * 3600)
+            
+    asyncio.create_task(schedule_currency_updates())
+    
     # Initialize Sentry if DSN is configured
     try:
         import os

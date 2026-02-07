@@ -24,14 +24,21 @@ def get_dashboard_summary(
     total_sales_count = db.query(func.count(Sale.id)).scalar() or 0
     total_customers = db.query(func.count(Customer.id)).scalar() or 0
     total_products = db.query(func.count(Product.id)).scalar() or 0
-    pending_repairs = db.query(func.count(Repair.id)).filter(Repair.status != "delivered", Repair.status != "cancelled").scalar() or 0
+    pending_repairs = db.query(func.count(Repair.id)).filter(Repair.status != "DELIVERED", Repair.status != "CANCELLED").scalar() or 0
     
     # Revenue calculations
-    total_revenue_usd = db.query(func.sum(Sale.total_usd)).scalar() or 0
-    today_revenue_usd = db.query(func.sum(Sale.total_usd)).filter(func.date(Sale.created_at) == today).scalar() or 0
+    total_sales_revenue_usd = db.query(func.sum(Sale.total_usd)).scalar() or 0
+    today_sales_revenue_usd = db.query(func.sum(Sale.total_usd)).filter(func.date(Sale.created_at) == today).scalar() or 0
     
-    # Repairs revenue (from payments linked to repairs)
+    # Repairs revenue (from ALL payments linked to repairs)
     repairs_revenue_usd = db.query(func.sum(Payment.amount_usd)).filter(Payment.repair_id != None).scalar() or 0
+    today_repairs_revenue_usd = db.query(func.sum(Payment.amount_usd)).filter(
+        Payment.repair_id != None,
+        func.date(Payment.created_at) == today
+    ).scalar() or 0
+
+    total_revenue_usd = Decimal(str(total_sales_revenue_usd)) + Decimal(str(repairs_revenue_usd))
+    today_revenue_usd = Decimal(str(today_sales_revenue_usd)) + Decimal(str(today_repairs_revenue_usd))
     
     # Recent sales
     recent_sales = db.query(Sale).order_by(Sale.created_at.desc()).limit(5).all()
@@ -44,9 +51,14 @@ def get_dashboard_summary(
         day_sales = db.query(func.sum(Sale.total_usd)).filter(
             func.date(Sale.created_at) == day_date
         ).scalar() or 0
+        day_repairs = db.query(func.sum(Payment.amount_usd)).filter(
+            Payment.repair_id != None,
+            func.date(Payment.created_at) == day_date
+        ).scalar() or 0
+        
         weekly_data.append({
             "name": DAY_NAMES[day_date.weekday() + 1] if day_date.weekday() < 6 else DAY_NAMES[0],
-            "value": float(day_sales),
+            "value": float(day_sales) + float(day_repairs),
             "date": day_date.isoformat()
         })
     

@@ -13,15 +13,18 @@ from ...schemas.inventory import (
     InventoryRead, StockAdjustment
 )
 from ..deps import get_current_active_user
+from ...services.audit_service import AuditService
 
 router = APIRouter(tags=["inventory"])
 
-@router.get("/products", response_model=List[ProductRead])
+from ...schemas.common import PaginatedResponse
+
+@router.get("/products", response_model=PaginatedResponse[ProductRead])
 def read_products(
+    page: int = 1,
+    size: int = 20,
     db: Session = Depends(get_db),
     current_user = Depends(get_current_active_user),
-    skip: int = 0,
-    limit: int = 100,
     search: str = None,
     category_id: int = None,
     in_stock: bool = None
@@ -50,7 +53,19 @@ def read_products(
         else:
             query = query.filter(Inventory.quantity == 0)
     
-    return query.offset(skip).limit(limit).all()
+    total = query.count()
+    pages = (total + size - 1) // size
+    skip = (page - 1) * size
+    
+    products = query.offset(skip).limit(size).all()
+    
+    return PaginatedResponse(
+        items=products,
+        total=total,
+        page=page,
+        size=size,
+        pages=pages
+    )
 
 @router.post("/products", response_model=ProductRead)
 def create_product(
@@ -170,6 +185,23 @@ def update_product(
             new_inventory = Inventory(product_id=product.id, quantity=inventory_quantity)
             db.add(new_inventory)
     
+    # Audit logging for cost/price changes
+    details = {}
+    if product_in.cost_usd is not None:
+        details["cost_usd"] = float(product_in.cost_usd)
+    if product_in.price_usd is not None:
+        details["price_usd"] = float(product_in.price_usd)
+    
+    if details:
+        AuditService.log_action(
+            db, 
+            user_id=current_user.id, 
+            action="UPDATE_COST_PRICE",
+            target_type="PRODUCT",
+            target_id=product.id,
+            details=details
+        )
+
     db.commit()
     db.refresh(product)
     return product
@@ -186,6 +218,16 @@ def delete_product(
     
     # Soft delete by setting is_active to False
     product.is_active = False
+    
+    AuditService.log_action(
+        db,
+        user_id=current_user.id,
+        action="DELETE_PRODUCT",
+        target_type="PRODUCT",
+        target_id=product_id,
+        details={"name": product.name, "sku": product.sku}
+    )
+    
     db.commit()
     return {"message": "Producto desactivado correctamente"}
 

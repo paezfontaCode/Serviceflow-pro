@@ -28,12 +28,16 @@ export default function Inventory() {
   const [isProductFormOpen, setIsProductFormOpen] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<ProductRead | undefined>(undefined);
+  const [page, setPage] = useState(1);
+  const pageSize = 15;
   const queryClient = useQueryClient();
 
-  const { data: products, isLoading } = useQuery({
-    queryKey: ['products'],
-    queryFn: inventoryService.getProducts,
+  const { data: pagination, isLoading } = useQuery({
+    queryKey: ['products', page, searchTerm, selectedCategory],
+    queryFn: () => inventoryService.getProducts(page, pageSize, searchTerm, selectedCategory || undefined),
   });
+
+  const products = pagination?.items || [];
 
   const { data: categories } = useQuery({
     queryKey: ['categories'],
@@ -68,12 +72,7 @@ export default function Inventory() {
     }
   };
 
-  const filteredProducts = products?.filter(p => {
-    const matchesSearch = p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      p.sku?.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesCategory = selectedCategory ? p.category_id === selectedCategory : true;
-    return matchesSearch && matchesCategory;
-  });
+  const filteredProducts = products;
 
   // Stats
   const totalProducts = products?.length || 0;
@@ -277,6 +276,36 @@ export default function Inventory() {
             </tbody>
           </table>
         </div>
+
+        {/* Pagination Controls */}
+        {pagination && pagination.pages > 1 && (
+          <div className="px-6 py-4 bg-white/5 border-t border-white/5 flex items-center justify-between">
+            <p className="text-xs text-slate-500 font-bold">
+              Mostrando <span className="text-white">{products.length}</span> de <span className="text-white">{pagination.total}</span> productos
+            </p>
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => setPage(p => Math.max(1, p - 1))}
+                disabled={page === 1}
+                className="p-2 rounded-lg hover:bg-white/10 text-slate-400 disabled:opacity-30 disabled:hover:bg-transparent transition-all"
+              >
+                Anterior
+              </button>
+              <div className="flex items-center gap-1 px-4">
+                <span className="text-xs font-black text-white">{page}</span>
+                <span className="text-xs font-bold text-slate-600">/</span>
+                <span className="text-xs font-bold text-slate-500">{pagination.pages}</span>
+              </div>
+              <button
+                onClick={() => setPage(p => Math.min(pagination.pages, p + 1))}
+                disabled={page === pagination.pages}
+                className="p-2 rounded-lg hover:bg-white/10 text-slate-400 disabled:opacity-30 disabled:hover:bg-transparent transition-all"
+              >
+                Siguiente
+              </button>
+            </div>
+          </div>
+        )}
       </div>
       <ProductForm
         isOpen={isProductFormOpen}
