@@ -33,3 +33,7 @@ htmlcov/
 # Archivos obsoletos (no commitear)
 .env.localprod
 *.bak
+.agent/
+
+
+

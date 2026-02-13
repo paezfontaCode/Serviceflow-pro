@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from ...core.database import get_db
 from ...core.security import get_password_hash
 from ...models.user import User, Role
-from ...schemas.user import UserCreate, UserRead, RoleRead
+from ...schemas.user import UserCreate, UserRead, RoleRead, UserUpdate
 from ..deps import get_current_active_user
 
 router = APIRouter(tags=["users"])
@@ -50,7 +50,7 @@ def create_user(
 @router.put("/{user_id}", response_model=UserRead)
 def update_user(
     user_id: int,
-    user_in: UserCreate, # Or a UserUpdate schema
+    user_in: UserUpdate, # Or a UserUpdate schema
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
 ):
@@ -58,15 +58,34 @@ def update_user(
     if not db_user:
         raise HTTPException(status_code=404, detail="User not found")
     
-    db_user.email = user_in.email
-    db_user.full_name = user_in.full_name
-    db_user.is_active = user_in.is_active
-    if user_in.password:
-        db_user.hashed_password = get_password_hash(user_in.password)
+    update_data = user_in.model_dump(exclude_unset=True)
+    if "password" in update_data:
+        update_data["hashed_password"] = get_password_hash(update_data.pop("password"))
+    
+    for field, value in update_data.items():
+        setattr(db_user, field, value)
     
     db.commit()
     db.refresh(db_user)
     return db_user
+
+@router.delete("/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_user(
+    user_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    db_user = db.query(User).filter(User.id == user_id).first()
+    if not db_user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Prevent self-deletion of the current user
+    if db_user.id == current_user.id:
+        raise HTTPException(status_code=400, detail="Cannot delete your own account")
+        
+    db.delete(db_user)
+    db.commit()
+    return None
 
 @router.get("/roles", response_model=List[RoleRead])
 def read_roles(db: Session = Depends(get_db)):

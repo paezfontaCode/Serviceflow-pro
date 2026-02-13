@@ -39,6 +39,7 @@ export default function Finance() {
     // Filters State
     const [searchQuery, setSearchQuery] = useState('');
     const [statusFilter, setStatusFilter] = useState('all');
+    const [activeTab, setActiveTab] = useState<'sessions' | 'morosos'>('sessions');
 
     const { data: summary, isLoading } = useQuery({
         queryKey: ['financeSummary'],
@@ -53,6 +54,12 @@ export default function Finance() {
     const { data: cashflow } = useQuery({
         queryKey: ['cashflowHistory'],
         queryFn: () => financeService.getCashflowHistory(7),
+    });
+
+    const { data: morososData } = useQuery({
+        queryKey: ['morosos'],
+        queryFn: financeService.getMorosos,
+        enabled: activeTab === 'morosos'
     });
 
     useEffect(() => {
@@ -287,81 +294,177 @@ export default function Finance() {
                 </div>
             </div>
 
-            {/* Session History Table */}
-            <div className="space-y-4">
-                <div className="flex items-center justify-between pl-2 border-l-4 border-primary-500">
-                    <div className="space-y-0.5">
-                        <h3 className="text-xl font-black text-white tracking-tight uppercase">Historial de Sesiones</h3>
-                        <p className="text-xs text-slate-500 font-medium">Control de aperturas y cierres de caja</p>
-                    </div>
+            {/* Tabs & Content */}
+            <div className="space-y-6">
+                <div className="flex border-b border-white/10 gap-8">
+                    <button
+                        onClick={() => setActiveTab('sessions')}
+                        className={`pb-4 text-sm font-black uppercase tracking-widest transition-all relative ${activeTab === 'sessions' ? 'text-primary-400' : 'text-slate-500 hover:text-slate-300'}`}
+                    >
+                        Historial de Sesiones
+                        {activeTab === 'sessions' && <div className="absolute bottom-0 left-0 w-full h-0.5 bg-primary-500 shadow-glow"></div>}
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('morosos')}
+                        className={`pb-4 text-sm font-black uppercase tracking-widest transition-all relative ${activeTab === 'morosos' ? 'text-amber-400' : 'text-slate-500 hover:text-slate-300'}`}
+                    >
+                        Lista de Morosos
+                        {activeTab === 'morosos' && <div className="absolute bottom-0 left-0 w-full h-0.5 bg-amber-500 shadow-glow"></div>}
+                    </button>
                 </div>
 
-                <div className="glass-card border-white/5 overflow-hidden">
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-left">
-                            <thead>
-                                <tr className="bg-white/5 border-b border-white/5">
-                                    <th className="px-6 py-4 text-[10px] font-black text-slate-500 uppercase tracking-widest">Código / Fecha</th>
-                                    <th className="px-6 py-4 text-[10px] font-black text-slate-500 uppercase tracking-widest">Apertura</th>
-                                    <th className="px-6 py-4 text-[10px] font-black text-slate-500 uppercase tracking-widest">Cierre Esperado</th>
-                                    <th className="px-6 py-4 text-[10px] font-black text-slate-500 uppercase tracking-widest">Diferencia</th>
-                                    <th className="px-6 py-4 text-[10px] font-black text-slate-500 uppercase tracking-widest">Estado</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-white/5 text-sm">
-                                {sessions?.filter((s: CashSessionRead) => {
-                                    const matchSearch = s.session_code.toLowerCase().includes(searchQuery.toLowerCase());
-                                    const matchStatus = statusFilter === 'all' || s.status === statusFilter;
-                                    return matchSearch && matchStatus;
-                                }).map((session: CashSessionRead) => (
-                                    <tr key={session.id} className="hover:bg-white/[0.02] transition-colors group">
-                                        <td className="px-6 py-4">
-                                            <div className="flex flex-col">
-                                                <span className="text-white font-bold">{session.session_code}</span>
-                                                <span className="text-[10px] text-slate-500 uppercase tracking-tighter">
-                                                    {format(new Date(session.opened_at), "dd MMM yyyy, HH:mm", { locale: es })}
-                                                </span>
-                                            </div>
-                                        </td>
-                                        <td className="px-6 py-4">
-                                            <div className="flex flex-col">
-                                                <span className="text-white font-bold">{formatUSD(Number(session.opening_amount))}</span>
-                                                <span className="text-[10px] text-slate-500">{formatVES(Number(session.opening_amount_ves))}</span>
-                                            </div>
-                                        </td>
-                                        <td className="px-6 py-4">
-                                            <div className="flex flex-col">
-                                                <span className="text-white font-bold">{formatUSD(Number(session.expected_amount))}</span>
-                                                <span className="text-[10px] text-slate-500">{formatVES(Number(session.expected_amount_ves))}</span>
-                                            </div>
-                                        </td>
-                                        <td className="px-6 py-4">
-                                            {session.status === 'closed' ? (
-                                                <div className="flex flex-col">
-                                                    <span className={`font-bold ${(Number(session.shortage) > 0 || Number(session.shortage_ves) > 0) ? 'text-rose-500' : 'text-emerald-500'}`}>
-                                                        {Number(session.overage) > 0 ? `+${formatUSD(Number(session.overage))}` :
-                                                            Number(session.shortage) > 0 ? `-${formatUSD(Number(session.shortage))}` : '0.00 USD'}
+                {activeTab === 'sessions' ? (
+                    <div className="space-y-4">
+                        <div className="flex items-center justify-between pl-2 border-l-4 border-primary-500">
+                            <div className="space-y-0.5">
+                                <h3 className="text-xl font-black text-white tracking-tight uppercase">Control de Caja</h3>
+                                <p className="text-xs text-slate-500 font-medium">Historial detallado de aperturas y cierres</p>
+                            </div>
+                        </div>
+
+                        <div className="glass-card border-white/5 overflow-hidden">
+                            <div className="overflow-x-auto">
+                                <table className="w-full text-left">
+                                    <thead>
+                                        <tr className="bg-white/5 border-b border-white/5">
+                                            <th className="px-6 py-4 text-[10px] font-black text-slate-500 uppercase tracking-widest">Código / Fecha</th>
+                                            <th className="px-6 py-4 text-[10px] font-black text-slate-500 uppercase tracking-widest">Apertura</th>
+                                            <th className="px-6 py-4 text-[10px] font-black text-slate-500 uppercase tracking-widest">Cierre Esperado</th>
+                                            <th className="px-6 py-4 text-[10px] font-black text-slate-500 uppercase tracking-widest">Diferencia</th>
+                                            <th className="px-6 py-4 text-[10px] font-black text-slate-500 uppercase tracking-widest">Estado</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-white/5 text-sm">
+                                        {sessions?.filter((s: CashSessionRead) => {
+                                            const matchSearch = s.session_code.toLowerCase().includes(searchQuery.toLowerCase());
+                                            const matchStatus = statusFilter === 'all' || s.status === statusFilter;
+                                            return matchSearch && matchStatus;
+                                        }).map((session: CashSessionRead) => (
+                                            <tr key={session.id} className="hover:bg-white/[0.02] transition-colors group">
+                                                <td className="px-6 py-4">
+                                                    <div className="flex flex-col">
+                                                        <span className="text-white font-bold">{session.session_code}</span>
+                                                        <span className="text-[10px] text-slate-500 uppercase tracking-tighter">
+                                                            {format(new Date(session.opened_at), "dd MMM yyyy, HH:mm", { locale: es })}
+                                                        </span>
+                                                    </div>
+                                                </td>
+                                                <td className="px-6 py-4">
+                                                    <div className="flex flex-col">
+                                                        <span className="text-white font-bold">{formatUSD(Number(session.opening_amount))}</span>
+                                                        <span className="text-[10px] text-slate-500">{formatVES(Number(session.opening_amount_ves))}</span>
+                                                    </div>
+                                                </td>
+                                                <td className="px-6 py-4">
+                                                    <div className="flex flex-col">
+                                                        <span className="text-white font-bold">{formatUSD(Number(session.expected_amount))}</span>
+                                                        <span className="text-[10px] text-slate-500">{formatVES(Number(session.expected_amount_ves))}</span>
+                                                    </div>
+                                                </td>
+                                                <td className="px-6 py-4">
+                                                    {session.status === 'closed' ? (
+                                                        <div className="flex flex-col">
+                                                            <span className={`font-bold ${(Number(session.shortage) > 0 || Number(session.shortage_ves) > 0) ? 'text-rose-500' : 'text-emerald-500'}`}>
+                                                                {Number(session.overage) > 0 ? `+${formatUSD(Number(session.overage))}` :
+                                                                    Number(session.shortage) > 0 ? `-${formatUSD(Number(session.shortage))}` : '0.00 USD'}
+                                                            </span>
+                                                            <span className="text-[10px] text-slate-500">
+                                                                {Number(session.overage_ves) > 0 ? `+${formatVES(Number(session.overage_ves))}` :
+                                                                    Number(session.shortage_ves) > 0 ? `-${formatVES(Number(session.shortage_ves))}` : '0.00 VES'}
+                                                            </span>
+                                                        </div>
+                                                    ) : (
+                                                        <span className="text-slate-500 italic text-xs">En progreso...</span>
+                                                    )}
+                                                </td>
+                                                <td className="px-6 py-4">
+                                                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider ${session.status === 'open' ? 'bg-emerald-500/10 text-emerald-500 animate-pulse' : 'bg-slate-500/10 text-slate-500'}`}>
+                                                        {session.status === 'open' ? 'Abierta' : 'Cerrada'}
                                                     </span>
-                                                    <span className="text-[10px] text-slate-500">
-                                                        {Number(session.overage_ves) > 0 ? `+${formatVES(Number(session.overage_ves))}` :
-                                                            Number(session.shortage_ves) > 0 ? `-${formatVES(Number(session.shortage_ves))}` : '0.00 VES'}
-                                                    </span>
-                                                </div>
-                                            ) : (
-                                                <span className="text-slate-500 italic text-xs">En progreso...</span>
-                                            )}
-                                        </td>
-                                        <td className="px-6 py-4">
-                                            <span className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider ${session.status === 'open' ? 'bg-emerald-500/10 text-emerald-500 animate-pulse' : 'bg-slate-500/10 text-slate-500'}`}>
-                                                {session.status === 'open' ? 'Abierta' : 'Cerrada'}
-                                            </span>
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
                     </div>
-                </div>
+                ) : (
+                    <div className="space-y-4 animate-in fade-in duration-500">
+                        <div className="flex items-center justify-between pl-2 border-l-4 border-amber-500">
+                            <div className="space-y-0.5">
+                                <h3 className="text-xl font-black text-white tracking-tight uppercase">Cuentas por Cobrar</h3>
+                                <p className="text-xs text-slate-500 font-medium">Clientes con deudas vencidas (+30 días)</p>
+                            </div>
+                            <div className="text-right">
+                                <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Riesgo Total</p>
+                                <p className="text-xl font-black text-rose-500">{formatUSD(morososData?.total_at_risk || 0)}</p>
+                            </div>
+                        </div>
+
+                        <div className="glass-card border-white/5 overflow-hidden">
+                            <div className="overflow-x-auto">
+                                <table className="w-full text-left">
+                                    <thead>
+                                        <tr className="bg-white/5 border-b border-white/5">
+                                            <th className="px-6 py-4 text-[10px] font-black text-slate-500 uppercase tracking-widest">Cliente</th>
+                                            <th className="px-6 py-4 text-[10px] font-black text-slate-500 uppercase tracking-widest">Deuda Total</th>
+                                            <th className="px-6 py-4 text-[10px] font-black text-slate-500 uppercase tracking-widest">Vencimiento Más Antiguo</th>
+                                            <th className="px-6 py-4 text-[10px] font-black text-slate-500 uppercase tracking-widest">Días de Atraso</th>
+                                            <th className="px-6 py-4 text-[10px] font-black text-slate-500 uppercase tracking-widest">Acción</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-white/5 text-sm">
+                                        {morososData?.morosos?.map((m) => (
+                                            <tr key={m.customer_id} className="hover:bg-white/[0.02] transition-colors group">
+                                                <td className="px-6 py-4">
+                                                    <div className="flex flex-col">
+                                                        <span className="text-white font-bold">{m.customer_name}</span>
+                                                        <span className="text-[10px] text-slate-500 uppercase tracking-tighter">
+                                                            {m.phone || 'Sin teléfono'}
+                                                        </span>
+                                                    </div>
+                                                </td>
+                                                <td className="px-6 py-4">
+                                                    <div className="flex flex-col">
+                                                        <span className="text-rose-400 font-bold">{formatUSD(m.total_debt)}</span>
+                                                        <span className="text-[10px] text-slate-500">{formatVES(m.total_debt * (summary?.exchange_rate || 1))}</span>
+                                                    </div>
+                                                </td>
+                                                <td className="px-6 py-4">
+                                                    <span className="text-slate-300">{format(new Date(m.oldest_due_date), "dd MMM yyyy", { locale: es })}</span>
+                                                </td>
+                                                <td className="px-6 py-4">
+                                                    <div className="flex items-center gap-2">
+                                                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase ${m.days_overdue > 60 ? 'bg-rose-500/20 text-rose-500' : 'bg-amber-500/20 text-amber-500'}`}>
+                                                            {m.days_overdue} Días
+                                                        </span>
+                                                    </div>
+                                                </td>
+                                                <td className="px-6 py-4">
+                                                    <button
+                                                        onClick={() => window.location.href = `/customers/${m.customer_id}`}
+                                                        className="p-2 rounded-lg bg-white/5 text-slate-400 hover:text-white transition-all text-xs font-bold flex items-center gap-1"
+                                                    >
+                                                        Ver Perfil
+                                                        <ArrowRight size={14} />
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                        {(!morososData?.morosos || morososData.morosos.length === 0) && (
+                                            <tr>
+                                                <td colSpan={5} className="px-6 py-12 text-center text-slate-500 font-medium">
+                                                    No hay deudores registrados actualmente.
+                                                </td>
+                                            </tr>
+                                        )}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                )}
             </div>
         </div>
 

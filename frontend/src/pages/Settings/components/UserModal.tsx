@@ -1,15 +1,17 @@
 import { useState, useEffect } from 'react';
-import { X, UserPlus, Loader2, CheckCircle2, Shield } from 'lucide-react';
-import { userService, Role } from '@/services/api/userService';
+import { X, UserPlus, Loader2, CheckCircle2, Shield, Save } from 'lucide-react';
+import { userService, Role, User } from '@/services/api/userService';
 import { toast } from 'sonner';
 
 interface UserModalProps {
     isOpen: boolean;
     onClose: () => void;
     onUserCreated: () => void;
+    user?: User | null;
 }
 
-export default function UserModal({ isOpen, onClose, onUserCreated }: UserModalProps) {
+export default function UserModal({ isOpen, onClose, onUserCreated, user }: UserModalProps) {
+    const isEdit = !!user;
     const [username, setUsername] = useState('');
     const [email, setEmail] = useState('');
     const [fullName, setFullName] = useState('');
@@ -21,14 +23,29 @@ export default function UserModal({ isOpen, onClose, onUserCreated }: UserModalP
     useEffect(() => {
         if (isOpen) {
             fetchRoles();
+            if (user) {
+                setUsername(user.username);
+                setEmail(user.email);
+                setFullName(user.full_name || '');
+                setPassword(''); // Don't show password
+                if (user.roles && user.roles.length > 0) {
+                    setSelectedRole(user.roles[0].id);
+                }
+            } else {
+                setUsername('');
+                setEmail('');
+                setFullName('');
+                setPassword('');
+                setSelectedRole(null);
+            }
         }
-    }, [isOpen]);
+    }, [isOpen, user]);
 
     const fetchRoles = async () => {
         try {
             const data = await userService.getRoles();
             setRoles(data);
-            if (data.length > 0) {
+            if (!user && data.length > 0) {
                 setSelectedRole(data[0].id);
             }
         } catch (error) {
@@ -47,35 +64,62 @@ export default function UserModal({ isOpen, onClose, onUserCreated }: UserModalP
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        
-        if (!username || !email || !password) {
+
+        if (!username || !email || (!isEdit && !password)) {
             toast.error('Por favor completa los campos obligatorios');
             return;
         }
 
         try {
             setIsPending(true);
-            const newUser = await userService.createUser({
-                username: username.trim(),
-                email: email.trim(),
-                full_name: fullName.trim(),
-                password: password,
-                is_active: true
-            });
 
-            if (selectedRole) {
-                await userService.assignRole(newUser.id, selectedRole);
+            if (isEdit && user) {
+                const updatedUser = await userService.updateUser(user.id, {
+                    username: username.trim(),
+                    email: email.trim(),
+                    full_name: fullName.trim(),
+                    password: password ? password : undefined
+                });
+
+                // Role management
+                const oldRole = user.roles && user.roles.length > 0 ? user.roles[0] : null;
+                if (selectedRole && oldRole?.id !== selectedRole) {
+                    if (oldRole) {
+                        await userService.removeRole(user.id, oldRole.id);
+                    }
+                    await userService.assignRole(user.id, selectedRole);
+                } else if (selectedRole && !oldRole) {
+                    await userService.assignRole(user.id, selectedRole);
+                }
+
+                toast.success('Usuario actualizado', {
+                    description: `${updatedUser.full_name || updatedUser.username} actualizado exitosamente`,
+                    icon: <CheckCircle2 className="text-emerald-500" />
+                });
+            } else {
+                const newUser = await userService.createUser({
+                    username: username.trim(),
+                    email: email.trim(),
+                    full_name: fullName.trim(),
+                    password: password,
+                    is_active: true
+                });
+
+                if (selectedRole) {
+                    await userService.assignRole(newUser.id, selectedRole);
+                }
+
+                toast.success('Usuario registrado', {
+                    description: `${newUser.full_name || newUser.username} agregado exitosamente`,
+                    icon: <CheckCircle2 className="text-emerald-500" />
+                });
             }
 
-            toast.success('Usuario registrado', {
-                description: `${newUser.full_name || newUser.username} agregado exitosamente`,
-                icon: <CheckCircle2 className="text-emerald-500" />
-            });
             onUserCreated();
             resetAndClose();
         } catch (error: any) {
             const detail = error.response?.data?.detail;
-            const message = typeof detail === 'string' ? detail : 'Error al registrar usuario';
+            const message = typeof detail === 'string' ? detail : `Error al ${isEdit ? 'actualizar' : 'registrar'} usuario`;
             toast.error(message);
         } finally {
             setIsPending(false);
@@ -87,18 +131,18 @@ export default function UserModal({ isOpen, onClose, onUserCreated }: UserModalP
     return (
         <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4">
             <div className="absolute inset-0 bg-background/80 backdrop-blur-md" onClick={resetAndClose}></div>
-            
+
             <div className="relative glass-card w-full max-w-md overflow-hidden border-white/10 animate-fade-in-up">
                 {/* Header */}
                 <div className="p-6 border-b border-white/5 flex items-center justify-between">
                     <div className="flex items-center gap-3">
                         <div className="p-2 rounded-lg bg-primary-500/10 text-primary-400">
-                            <UserPlus size={24} />
+                            {isEdit ? <Shield size={24} /> : <UserPlus size={24} />}
                         </div>
-                        <h2 className="text-lg font-bold text-white">Nuevo Usuario</h2>
+                        <h2 className="text-lg font-bold text-white">{isEdit ? 'Editar Usuario' : 'Nuevo Usuario'}</h2>
                     </div>
-                    <button 
-                        onClick={resetAndClose} 
+                    <button
+                        onClick={resetAndClose}
                         className="p-2 rounded-lg hover:bg-white/5 text-slate-500 hover:text-white transition-colors"
                     >
                         <X size={20} />
@@ -150,15 +194,15 @@ export default function UserModal({ isOpen, onClose, onUserCreated }: UserModalP
 
                     <div className="space-y-2">
                         <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest pl-1">
-                            Contraseña <span className="text-rose-400">*</span>
+                            Contraseña {isEdit ? '(Opcional)' : <span className="text-rose-400">*</span>}
                         </label>
                         <input
                             type="password"
-                            placeholder="••••••••"
+                            placeholder={isEdit ? "Dejar en blanco para no cambiar" : "••••••••"}
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
                             className="w-full bg-slate-900/50 border border-white/5 rounded-xl px-4 py-3 text-white text-sm focus:border-primary-500 outline-none transition-all"
-                            required
+                            required={!isEdit}
                         />
                     </div>
 
@@ -174,8 +218,8 @@ export default function UserModal({ isOpen, onClose, onUserCreated }: UserModalP
                                     onClick={() => setSelectedRole(role.id)}
                                     className={`
                                         px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-2 border transition-all
-                                        ${selectedRole === role.id 
-                                            ? 'bg-primary-500/20 text-primary-400 border-primary-500/50' 
+                                        ${selectedRole === role.id
+                                            ? 'bg-primary-500/20 text-primary-400 border-primary-500/50'
                                             : 'bg-white/5 text-slate-500 border-transparent hover:bg-white/10'}
                                     `}
                                 >
@@ -197,15 +241,15 @@ export default function UserModal({ isOpen, onClose, onUserCreated }: UserModalP
                         </button>
                         <button
                             type="submit"
-                            disabled={isPending || !username || !email || !password}
+                            disabled={isPending || !username || !email || (!isEdit && !password)}
                             className="flex-[2] btn-primary py-3 disabled:opacity-50 disabled:cursor-not-allowed group shadow-glow"
                         >
                             {isPending ? (
                                 <Loader2 className="w-5 h-5 animate-spin" />
                             ) : (
                                 <>
-                                    <UserPlus size={18} />
-                                    <span>Crear Usuario</span>
+                                    {isEdit ? <Save size={18} /> : <UserPlus size={18} />}
+                                    <span>{isEdit ? 'Guardar Cambios' : 'Crear Usuario'}</span>
                                 </>
                             )}
                         </button>

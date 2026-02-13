@@ -39,6 +39,7 @@ export default function Settings() {
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [isUserModalOpen, setIsUserModalOpen] = useState(false);
+    const [editingUser, setEditingUser] = useState<User | null>(null);
     const [isEditingRate, setIsEditingRate] = useState(false);
     const [newRate, setNewRate] = useState('');
 
@@ -149,6 +150,26 @@ export default function Settings() {
             toast.error('Error al actualizar la tasa');
         }
     };
+    const handleEditUser = (user: User) => {
+        setEditingUser(user);
+        setIsUserModalOpen(true);
+    };
+
+    const handleDeleteUser = async (user: User) => {
+        if (!confirm(`¿Estás seguro de que deseas eliminar al usuario ${user.full_name || user.username}?`)) {
+            return;
+        }
+
+        try {
+            const toastId = toast.loading('Eliminando usuario...');
+            await userService.deleteUser(user.id);
+            await loadInitialData();
+            toast.success('Usuario eliminado correctamente', { id: toastId });
+        } catch (error: any) {
+            const detail = error.response?.data?.detail;
+            toast.error(typeof detail === 'string' ? detail : 'Error al eliminar usuario');
+        }
+    };
 
     const renderContent = () => {
         switch (activeTab) {
@@ -252,8 +273,18 @@ export default function Settings() {
                                             </td>
                                             <td className="px-6 py-4 text-right">
                                                 <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                    <button className="p-2 hover:bg-white/5 rounded-lg text-slate-400"><Save size={14} /></button>
-                                                    <button className="p-2 hover:bg-rose-500/10 rounded-lg text-rose-400"><Trash2 size={14} /></button>
+                                                    <button
+                                                        onClick={() => handleEditUser(user)}
+                                                        className="p-2 hover:bg-white/5 rounded-lg text-slate-400"
+                                                    >
+                                                        <Shield size={14} />
+                                                    </button>
+                                                    <button
+                                                        onClick={() => handleDeleteUser(user)}
+                                                        className="p-2 hover:bg-rose-500/10 rounded-lg text-rose-400"
+                                                    >
+                                                        <Trash2 size={14} />
+                                                    </button>
                                                 </div>
                                             </td>
                                         </tr>
@@ -679,8 +710,12 @@ export default function Settings() {
 
             <UserModal
                 isOpen={isUserModalOpen}
-                onClose={() => setIsUserModalOpen(false)}
+                onClose={() => {
+                    setIsUserModalOpen(false);
+                    setEditingUser(null);
+                }}
                 onUserCreated={loadInitialData}
+                user={editingUser}
             />
 
             {/* Confirmation Modal */}

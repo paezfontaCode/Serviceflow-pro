@@ -540,7 +540,7 @@ export default function WorkOrderForm({ isOpen, onClose, order }: WorkOrderFormP
 
                                         <button
                                             type="submit"
-                                            disabled={mutation.isPending || (selectedCustomer && (selectedCustomer.current_debt || 0) > 0.01)}
+                                            disabled={mutation.isPending || !!(selectedCustomer && (selectedCustomer.current_debt || 0) > 0.01)}
                                             className="w-full btn-primary h-14 text-lg font-bold group mt-4 shadow-lg shadow-primary-500/20 disabled:opacity-50 disabled:grayscale disabled:cursor-not-allowed"
                                         >
                                             {mutation.isPending ? <Loader2 className="animate-spin" /> : (
@@ -553,7 +553,7 @@ export default function WorkOrderForm({ isOpen, onClose, order }: WorkOrderFormP
                                                     ) : (
                                                         <>
                                                             <Save size={20} className="group-hover:scale-110 transition-transform" />
-                                                            <span>Generar Orden</span>
+                                                            <span>{isEdit ? 'Actualizar Orden' : 'Generar Orden'}</span>
                                                         </>
                                                     )}
                                                 </div>

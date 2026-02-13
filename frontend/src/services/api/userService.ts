@@ -46,4 +46,7 @@ export const userService = {
   removeRole: async (userId: number, roleId: number) => {
     await client.delete(`users/${userId}/roles/${roleId}`);
   },
+  deleteUser: async (id: number) => {
+    await client.delete(`users/${id}`);
+  },
 };

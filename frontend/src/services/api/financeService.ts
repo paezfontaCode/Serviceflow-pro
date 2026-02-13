@@ -14,6 +14,29 @@ export interface FinanceSummary {
   collections_by_method: Record<string, number>;
 }
 
+export interface MorosoAccount {
+  id: number;
+  balance: number;
+  due_date: string;
+  days_overdue: number;
+}
+
+export interface Moroso {
+  customer_id: number;
+  customer_name: string;
+  phone: string | null;
+  total_debt: number;
+  oldest_due_date: string;
+  days_overdue: number;
+  accounts: MorosoAccount[];
+}
+
+export interface MorososResponse {
+  morosos: Moroso[];
+  total_morosos: number;
+  total_at_risk: number;
+}
+
 export interface CashflowItem {
   name: string;
   full_date: string;
@@ -66,7 +89,7 @@ export const financeService = {
   },
 
   getMorosos: async () => {
-    const { data } = await client.get('finance/morosos');
+    const { data } = await client.get<MorososResponse>('finance/morosos');
     return data;
   },
 
