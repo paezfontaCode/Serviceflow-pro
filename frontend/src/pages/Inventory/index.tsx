@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Search,
   Plus,
@@ -21,8 +22,10 @@ import { ProductRead } from '@/types/api';
 import { toast } from 'sonner';
 import ProductForm from './components/ProductForm';
 import ImportCSVModal from './components/ImportCSVModal';
+import Pagination from '@/components/Pagination';
 
 export default function Inventory() {
+  const { t } = useTranslation();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<number | null>(null);
   const [isProductFormOpen, setIsProductFormOpen] = useState(false);
@@ -82,31 +85,38 @@ export default function Inventory() {
 
   return (
     <div className="space-y-8 animate-fade-in">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+        <div className="space-y-1">
+          <h2 className="text-3xl font-black text-white tracking-tight">{t('inventory.title')}</h2>
+          <p className="text-slate-500 font-medium">{t('inventory.subtitle')}</p>
+        </div>
+      </div>
+
       {/* Header with Stats */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <StatCard
-          title="Total Productos"
+          title={t('inventory.stats.total_products')}
           value={totalProducts.toString()}
           icon={Package}
           trend="+12% este mes"
           color="primary"
         />
         <StatCard
-          title="Valor Inventario"
+          title={t('inventory.stats.inventory_value')}
           value={formatUSD(totalValue)}
           icon={TrendingUp}
           trend="Basado en PVP"
           color="finance"
         />
         <StatCard
-          title="Bajo Stock"
+          title={t('inventory.stats.low_stock')}
           value={lowStock.toString()}
           icon={AlertTriangle}
           trend="Requiere atención"
           color="warning"
         />
         <StatCard
-          title="Sin Stock"
+          title={t('inventory.stats.out_of_stock')}
           value={outOfStock.toString()}
           icon={Box}
           trend="Agotados"
@@ -278,34 +288,13 @@ export default function Inventory() {
         </div>
 
         {/* Pagination Controls */}
-        {pagination && pagination.pages > 1 && (
-          <div className="px-6 py-4 bg-white/5 border-t border-white/5 flex items-center justify-between">
-            <p className="text-xs text-slate-500 font-bold">
-              Mostrando <span className="text-white">{products.length}</span> de <span className="text-white">{pagination.total}</span> productos
-            </p>
-            <div className="flex items-center gap-1">
-              <button
-                onClick={() => setPage(p => Math.max(1, p - 1))}
-                disabled={page === 1}
-                className="p-2 rounded-lg hover:bg-white/10 text-slate-400 disabled:opacity-30 disabled:hover:bg-transparent transition-all"
-              >
-                Anterior
-              </button>
-              <div className="flex items-center gap-1 px-4">
-                <span className="text-xs font-black text-white">{page}</span>
-                <span className="text-xs font-bold text-slate-600">/</span>
-                <span className="text-xs font-bold text-slate-500">{pagination.pages}</span>
-              </div>
-              <button
-                onClick={() => setPage(p => Math.min(pagination.pages, p + 1))}
-                disabled={page === pagination.pages}
-                className="p-2 rounded-lg hover:bg-white/10 text-slate-400 disabled:opacity-30 disabled:hover:bg-transparent transition-all"
-              >
-                Siguiente
-              </button>
-            </div>
-          </div>
-        )}
+        <Pagination
+          currentPage={page}
+          totalPages={pagination?.pages || 0}
+          totalItems={pagination?.total || 0}
+          itemsOnPage={products.length}
+          onPageChange={setPage}
+        />
       </div>
       <ProductForm
         isOpen={isProductFormOpen}

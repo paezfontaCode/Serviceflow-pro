@@ -11,6 +11,22 @@
         "reports": "Reports",
         "settings": "Settings"
     },
+    "common": {
+        "loading": "Loading...",
+        "error": "Error",
+        "success": "Success",
+        "save": "Save",
+        "cancel": "Cancel",
+        "delete": "Delete",
+        "search": "Search...",
+        "export": "Export",
+        "import": "Import",
+        "actions": "Actions"
+    },
+    "dashboard": {
+        "title": "Command Center",
+        "subtitle": "Overview and operational alerts"
+    },
     "history_page": {
         "title": "Sales History",
         "subtitle": "View and manage all past sales",
@@ -28,6 +44,76 @@
         "table_paid_rest": "Paid / Rest",
         "table_status": "Status",
         "table_actions": "Actions"
+    },
+    "pos": {
+        "title": "Point of Sale",
+        "session_status": "Cash Status",
+        "open": "Open",
+        "closed": "Closed",
+        "close_session": "Close Cash",
+        "new_order": "New Order",
+        "open_modal": {
+            "title": "Open Session",
+            "subtitle": "Enter the initial available cash",
+            "usd_label": "Cash USD",
+            "ves_label": "Cash VES",
+            "submit": "Start Shift"
+        },
+        "close_modal": {
+            "title": "Close Session"
+        }
+    },
+    "repairs": {
+        "title": "Repair Center",
+        "subtitle": "Service order management and technical flow"
+    },
+    "inventory": {
+        "title": "Inventory Management",
+        "subtitle": "Stock control, parts, and supplies",
+        "stats": {
+            "total_products": "Total Products",
+            "inventory_value": "Inventory Value",
+            "low_stock": "Low Stock",
+            "out_of_stock": "Out of Stock"
+        }
+    },
+    "expenses": {
+        "title": "Operating Expenses",
+        "subtitle": "Egress and cash flow control"
+    },
+    "customers": {
+        "title": "Customer Management",
+        "subtitle": "Centralized customer database and history"
+    },
+    "finance": {
+        "title": "Financial Module",
+        "subtitle": "General consolidated and cash flow control",
+        "tabs": {
+            "sessions": "Session History",
+            "debtors": "Debtors List"
+        },
+        "stats": {
+            "estimated_profit": "Estimated Profit",
+            "receivables": "Accounts Receivable",
+            "risk_amount": "Amount at Risk"
+        },
+        "table": {
+            "code_date": "Code / Date",
+            "opening": "Opening",
+            "expected_close": "Expected Close",
+            "difference": "Difference",
+            "status": "Status"
+        }
+    },
+    "reports": {
+        "title": "Reports & Analytics",
+        "subtitle": "Performance visualization and data export",
+        "kpis": {
+            "total_sales": "Total Sales",
+            "orders": "Orders",
+            "services": "Services",
+            "avg_ticket": "Avg. Ticket"
+        }
     },
     "settings": {
         "title": "System Settings",

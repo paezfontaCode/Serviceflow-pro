@@ -17,8 +17,16 @@ export const salesService = {
     return data;
   },
 
-  getHistory: async (params: { start_date?: string; end_date?: string; customer_id?: number; payment_status?: string }) => {
-    const { data } = await client.get<{ sales: SaleRead[]; summary: any }>('sales/history', { params });
+  getHistory: async (params: {
+    start_date?: string;
+    end_date?: string;
+    customer_id?: number;
+    payment_status?: string;
+    page?: number;
+    size?: number;
+    search?: string;
+  }) => {
+    const { data } = await client.get<{ items: SaleRead[]; summary: any; total: number; pages: number; page: number }>('sales/history', { params });
     return data;
   },
 

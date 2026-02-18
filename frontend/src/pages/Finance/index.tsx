@@ -11,6 +11,7 @@ import {
     X,
 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { financeService, CashSessionRead } from '@/services/api/financeService';
 import { formatUSD, formatVES } from '@/utils/currency';
 import { format } from 'date-fns';
@@ -32,6 +33,7 @@ const calculateProgress = (amount: number | undefined, total: number | undefined
 };
 
 export default function Finance() {
+    const { t } = useTranslation();
     const [isMounted, setIsMounted] = useState(false);
     const [isFilterVisible, setIsFilterVisible] = useState(false);
     const [isDownloading, setIsDownloading] = useState(false);
@@ -80,8 +82,8 @@ export default function Finance() {
             {/* Header */}
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
                 <div className="space-y-1">
-                    <h2 className="text-3xl font-black text-white tracking-tight">Módulo Financiero</h2>
-                    <p className="text-slate-500 font-medium">Consolidado general y control de flujo de caja</p>
+                    <h2 className="text-3xl font-black text-white tracking-tight">{t('finance.title')}</h2>
+                    <p className="text-slate-500 font-medium">{t('finance.subtitle')}</p>
                 </div>
 
                 <div className="flex items-center gap-3">
@@ -150,7 +152,7 @@ export default function Finance() {
             {/* Financial Status Cards */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <FinancialCard
-                    title="Utilidad Estimada"
+                    title={t('finance.stats.estimated_profit')}
                     amount={formatUSD(summary?.cash_in_session || 0)}
                     subAmount={formatVES(summary?.cash_in_session_ves || 0)}
                     icon={TrendingUp}
@@ -159,7 +161,7 @@ export default function Finance() {
                     description="Ventas menos gastos (Día)"
                 />
                 <FinancialCard
-                    title="Cuentas por Cobrar"
+                    title={t('finance.stats.receivables')}
                     amount={formatUSD(summary?.total_receivables || 0)}
                     icon={Users}
                     trend={`${summary?.morosos_count || 0} deudores`}
@@ -167,7 +169,7 @@ export default function Finance() {
                     description="Pendiente por recaudar"
                 />
                 <FinancialCard
-                    title="Monto en Riesgo"
+                    title={t('finance.stats.risk_amount')}
                     amount={formatUSD(summary?.overdue_amount || 0)}
                     icon={TrendingDown}
                     trend="Vencido"
@@ -178,7 +180,7 @@ export default function Finance() {
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 {/* Cashflow Chart */}
-                <div className="lg:col-span-2 glass-card p-8 border-white/5 space-y-8">
+                <div className="lg:col-span-2 glass-card p-4 md:p-8 border-white/5 space-y-8">
                     <div className="flex justify-between items-center">
                         <div className="space-y-1">
                             <h3 className="text-lg font-black text-white uppercase tracking-tight">Flujo de Caja</h3>
@@ -301,14 +303,14 @@ export default function Finance() {
                         onClick={() => setActiveTab('sessions')}
                         className={`pb-4 text-sm font-black uppercase tracking-widest transition-all relative ${activeTab === 'sessions' ? 'text-primary-400' : 'text-slate-500 hover:text-slate-300'}`}
                     >
-                        Historial de Sesiones
+                        {t('finance.tabs.sessions')}
                         {activeTab === 'sessions' && <div className="absolute bottom-0 left-0 w-full h-0.5 bg-primary-500 shadow-glow"></div>}
                     </button>
                     <button
                         onClick={() => setActiveTab('morosos')}
                         className={`pb-4 text-sm font-black uppercase tracking-widest transition-all relative ${activeTab === 'morosos' ? 'text-amber-400' : 'text-slate-500 hover:text-slate-300'}`}
                     >
-                        Lista de Morosos
+                        {t('finance.tabs.debtors')}
                         {activeTab === 'morosos' && <div className="absolute bottom-0 left-0 w-full h-0.5 bg-amber-500 shadow-glow"></div>}
                     </button>
                 </div>

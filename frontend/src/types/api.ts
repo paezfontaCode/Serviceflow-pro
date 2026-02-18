@@ -86,3 +86,63 @@ export interface WorkOrderCreate {
     missing_part_note?: string;
     status?: string;
 }
+
+// --- Supplier Types ---
+export interface SupplierBase {
+    name: string;
+    contact_name?: string;
+    email?: string;
+    phone?: string;
+    address?: string;
+    tax_id?: string;
+    notes?: string;
+    is_active: boolean;
+}
+
+export interface SupplierCreate extends Omit<SupplierBase, 'is_active'> {
+    is_active?: boolean;
+}
+
+export interface SupplierRead extends SupplierBase {
+    id: number;
+    created_at: string;
+    updated_at?: string;
+}
+
+// --- Purchase Types ---
+export interface PurchaseItemCreate {
+    product_id: number;
+    quantity: number;
+    unit_cost_usd: number;
+}
+
+export interface PurchaseItemRead {
+    id: number;
+    product_id: number;
+    product_name: string;
+    quantity: number;
+    unit_cost_usd: number;
+    subtotal_usd: number;
+}
+
+export interface PurchaseOrderCreate {
+    supplier_id: number;
+    expected_date?: string;
+    notes?: string;
+    items: PurchaseItemCreate[];
+}
+
+export interface PurchaseOrderRead {
+    id: number;
+    supplier_id: number;
+    supplier_name: string;
+    user_id: number;
+    username: string;
+    status: 'draft' | 'ordered' | 'received' | 'cancelled';
+    total_amount_usd: number;
+    expected_date?: string;
+    received_date?: string;
+    notes?: string;
+    created_at: string;
+    items: PurchaseItemRead[];
+}

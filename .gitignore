@@ -18,6 +18,7 @@ backend/.env
 
 # Base de datos local
 postgres_data/
+backups/
 
 # Otros
 .DS_Store

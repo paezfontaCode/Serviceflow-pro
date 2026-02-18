@@ -16,6 +16,8 @@ import { salesService } from '@/services/api/salesService';
 import { formatUSD, formatVES } from '@/utils/currency';
 import { ticketService } from '@/services/ticketService';
 import { toast } from 'sonner';
+import { format } from 'date-fns';
+import Pagination from '@/components/Pagination';
 
 export default function SalesHistory() {
     const { t } = useTranslation();
@@ -25,10 +27,16 @@ export default function SalesHistory() {
         payment_status: '',
     });
     const [search, setSearch] = useState('');
+    const [page, setPage] = useState(1);
 
     const { data, isLoading } = useQuery({
-        queryKey: ['salesHistory', filters],
-        queryFn: () => salesService.getHistory(filters),
+        queryKey: ['salesHistory', filters, search, page],
+        queryFn: () => salesService.getHistory({
+            ...filters,
+            search,
+            page,
+            size: 10
+        }),
     });
 
     const handlePrintTicket = async (saleId: number) => {
@@ -55,10 +63,38 @@ export default function SalesHistory() {
         }
     };
 
-    const filteredSales = data?.sales.filter(s =>
-        s.customer_name?.toLowerCase().includes(search.toLowerCase()) ||
-        s.id.toString().includes(search)
-    ) || [];
+    const sales = data?.items || [];
+
+    const handleExportCSV = () => {
+        if (!sales || sales.length === 0) {
+            toast.error('No hay datos para exportar');
+            return;
+        }
+
+        const headers = ['ID', 'Fecha', 'Cliente', 'Total USD', 'Abonado', 'Resta', 'Estado', 'Metodo'];
+        const rows = sales.map(sale => [
+            sale.id,
+            format(new Date(sale.created_at), 'dd/MM/yyyy HH:mm'),
+            `"${sale.customer_name?.replace(/"/g, '""') || 'Cliente Ocasional'}"`,
+            sale.total_usd,
+            sale.paid_amount || 0,
+            sale.pending_amount || 0,
+            sale.payment_status.toUpperCase(),
+            sale.payment_method.toUpperCase()
+        ]);
+
+        const csvContent = [headers, ...rows].map(e => e.join(',')).join('\n');
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.setAttribute('href', url);
+        link.setAttribute('download', `ventas_${format(new Date(), 'yyyyMMdd')}.csv`);
+        link.className = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        toast.success('CSV generado correctamente');
+    };
 
     return (
         <div className="space-y-8 animate-fade-in">
@@ -73,7 +109,11 @@ export default function SalesHistory() {
                 </div>
 
                 <div className="flex items-center gap-3">
-                    <button className="glass p-3 rounded-2xl border-white/5 text-slate-400 hover:text-white transition-all" title="Exportar CSV">
+                    <button
+                        onClick={handleExportCSV}
+                        className="glass p-3 rounded-2xl border-white/5 text-slate-400 hover:text-white transition-all shadow-glow-hover"
+                        title="Exportar CSV"
+                    >
                         <Download size={20} />
                     </button>
                     <button className="btn-primary px-6 py-3 text-sm font-bold flex items-center gap-2">
@@ -101,7 +141,7 @@ export default function SalesHistory() {
                 />
                 <SummaryCard
                     title={t('history_page.sales_count')}
-                    value={data?.summary.count || 0}
+                    value={data?.total || 0}
                     icon={Clock}
                     color="finance"
                     loading={isLoading}
@@ -118,7 +158,10 @@ export default function SalesHistory() {
                             type="text"
                             placeholder={t('history_page.search_placeholder')}
                             value={search}
-                            onChange={(e) => setSearch(e.target.value)}
+                            onChange={(e) => {
+                                setSearch(e.target.value);
+                                setPage(1); // Reset page on search
+                            }}
                             className="w-full bg-slate-900/50 border border-slate-700 rounded-2xl pl-12 pr-4 py-3 text-sm text-white focus:border-primary-500 outline-none transition-all shadow-inner"
                         />
                     </div>
@@ -128,7 +171,10 @@ export default function SalesHistory() {
                     <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">{t('history_page.table_status')}</label>
                     <select
                         value={filters.payment_status}
-                        onChange={(e) => setFilters({ ...filters, payment_status: e.target.value })}
+                        onChange={(e) => {
+                            setFilters({ ...filters, payment_status: e.target.value });
+                            setPage(1); // Reset page on filter
+                        }}
                         className="w-full bg-slate-900/50 border border-slate-700 rounded-2xl px-4 py-3 text-sm text-white focus:border-primary-500 outline-none transition-all appearance-none cursor-pointer"
                     >
                         <option value="">{t('history_page.status_all')}</option>
@@ -143,7 +189,10 @@ export default function SalesHistory() {
                     <input
                         type="date"
                         value={filters.start_date}
-                        onChange={(e) => setFilters({ ...filters, start_date: e.target.value })}
+                        onChange={(e) => {
+                            setFilters({ ...filters, start_date: e.target.value });
+                            setPage(1);
+                        }}
                         className="w-full bg-slate-900/50 border border-slate-700 rounded-2xl px-4 py-3 text-sm text-white focus:border-primary-500 outline-none transition-all cursor-pointer"
                     />
                 </div>
@@ -153,7 +202,10 @@ export default function SalesHistory() {
                     <input
                         type="date"
                         value={filters.end_date}
-                        onChange={(e) => setFilters({ ...filters, end_date: e.target.value })}
+                        onChange={(e) => {
+                            setFilters({ ...filters, end_date: e.target.value });
+                            setPage(1);
+                        }}
                         className="w-full bg-slate-900/50 border border-slate-700 rounded-2xl px-4 py-3 text-sm text-white focus:border-primary-500 outline-none transition-all cursor-pointer"
                     />
                 </div>
@@ -183,7 +235,7 @@ export default function SalesHistory() {
                                         </div>
                                     </td>
                                 </tr>
-                            ) : filteredSales.length === 0 ? (
+                            ) : sales.length === 0 ? (
                                 <tr>
                                     <td colSpan={6} className="p-20 text-center">
                                         <div className="flex flex-col items-center gap-3 opacity-30">
@@ -193,7 +245,7 @@ export default function SalesHistory() {
                                     </td>
                                 </tr>
                             ) : (
-                                filteredSales.map((sale) => (
+                                sales.map((sale) => (
                                     <tr key={sale.id} className="group hover:bg-white/[0.02] transition-colors">
                                         <td className="p-5">
                                             <div className="font-bold text-white mb-1">#{sale.id.toString().padStart(6, '0')}</div>
@@ -244,6 +296,14 @@ export default function SalesHistory() {
                         </tbody>
                     </table>
                 </div>
+
+                <Pagination
+                    currentPage={page}
+                    totalPages={data?.pages || 0}
+                    totalItems={data?.total || 0}
+                    itemsOnPage={sales.length}
+                    onPageChange={setPage}
+                />
             </div>
         </div>
     );

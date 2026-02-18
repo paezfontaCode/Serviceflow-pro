@@ -18,6 +18,7 @@ import {
   ResponsiveContainer,
 } from 'recharts';
 import { useQuery } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { financeService, ActivityItem as ActivityItemType } from '@/services/api/financeService';
 import { formatUSD, formatVES } from '@/utils/currency';
 import { useNavigate } from 'react-router-dom';
@@ -29,6 +30,7 @@ import ActivityItem from './components/ActivityItem';
 import ActionAlerts from './components/ActionAlerts';
 
 export default function Dashboard() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [isMounted, setIsMounted] = useState(false);
 
@@ -59,8 +61,8 @@ export default function Dashboard() {
       {/* Welcome Header */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div className="space-y-1">
-          <h2 className="text-3xl font-black text-white tracking-tight">Centro de Comando</h2>
-          <p className="text-slate-500 font-medium">Visión general y alertas operativas</p>
+          <h2 className="text-3xl font-black text-white tracking-tight">{t('dashboard.title')}</h2>
+          <p className="text-slate-500 font-medium">{t('dashboard.subtitle')}</p>
         </div>
         <div className="flex items-center gap-3 glass p-2 rounded-2xl border-white/5">
           <div className="w-10 h-10 rounded-xl bg-primary-600/20 flex items-center justify-center text-primary-400">
@@ -118,7 +120,7 @@ export default function Dashboard() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Sales Chart */}
-        <div className="lg:col-span-2 glass-card p-8 border-white/5 space-y-6">
+        <div className="lg:col-span-2 glass-card p-4 md:p-8 border-white/5 space-y-6">
           <div className="flex justify-between items-center">
             <h3 className="text-lg font-black text-white uppercase tracking-tight">Tendencia de Ingresos</h3>
             <select className="bg-white/5 border-none rounded-xl text-xs font-bold text-slate-400 focus:ring-1 focus:ring-primary-500/50 cursor-pointer p-2 px-4 outline-none">
@@ -183,7 +185,7 @@ export default function Dashboard() {
         </div>
 
         {/* Quick Actions / Activity */}
-        <div className="glass-card p-8 border-white/5 space-y-6 flex flex-col">
+        <div className="glass-card p-4 md:p-8 border-white/5 space-y-6 flex flex-col">
           <h3 className="text-lg font-black text-white uppercase tracking-tight">Actividad Reciente</h3>
 
           <div className="space-y-6 flex-1 overflow-y-auto min-h-[300px] pr-2 custom-scrollbar">

@@ -84,6 +84,8 @@ show_menu() {
     echo "6) 📋 Ver logs (Frontend únicamente)"
     echo "7) 🔍 Diagnóstico de red"
     echo "8) 🗑️  Limpiar sistema (Prune)"
+    echo "9) 💾 Crear backup de la base de datos"
+    echo "10) ♻️ Restaurar backup"
     echo "q) Salir"
     echo ""
 }
@@ -127,6 +129,19 @@ while true; do
             $DOCKER_COMPOSE_CMD down --remove-orphans
             docker system prune -f --volumes
             echo -e "${GREEN}✅ Limpieza realizada.${NC}"
+            ;;
+        9)
+            ./scripts/backup.sh
+            ;;
+        10)
+            echo -e "${BLUE}📋 Backups disponibles:${NC}"
+            ls -1 backups/*.sql.gz 2>/dev/null || echo "No hay backups."
+            read -p "Ingresa la ruta del backup a restaurar: " backup_file
+            if [ -f "$backup_file" ]; then
+                ./scripts/restore.sh "$backup_file"
+            else
+                echo -e "${RED}Archivo no encontrado.${NC}"
+            fi
             ;;
         q)
             echo "Bye!"

@@ -10,6 +10,7 @@ import InventoryPartPicker from './InventoryPartPicker';
 import { useExchangeRateStore } from '@/store/exchangeRateStore';
 import { ticketService } from '@/services/ticketService';
 import { formatVES, formatUSD } from '@/utils/currency';
+import { WorkOrderSchema } from '@/lib/schemas';
 
 interface WorkOrderFormProps {
     isOpen: boolean;
@@ -59,6 +60,7 @@ export default function WorkOrderForm({ isOpen, onClose, order }: WorkOrderFormP
     const [isSuccess, setIsSuccess] = useState(false);
     const [createdOrder, setCreatedOrder] = useState<WorkOrderRead | null>(null);
     const [itemsToConsume, setItemsToConsume] = useState<{ product_id: number, quantity: number, name: string, price: number }[]>([]);
+    const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
     // Customer selection state
     const [customerSearch, setCustomerSearch] = useState('');
@@ -186,21 +188,44 @@ export default function WorkOrderForm({ isOpen, onClose, order }: WorkOrderFormP
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        if (!formData.customer_id) {
-            toast.error('Debes seleccionar un cliente');
-            return;
-        }
-        const payload = {
-            customer_id: parseInt(formData.customer_id),
+        setFieldErrors({});
+
+        // Prepare data for validation
+        const validationData = {
+            customer_id: parseInt(formData.customer_id) || undefined,
             device_model: `${formData.brand} ${formData.model}`.trim(),
             device_imei: formData.device_imei || undefined,
             problem_description: formData.problem_description,
-            priority: formData.priority,
             service_type: formData.service_type,
+            estimated_cost_usd: parseFloat(formData.labor_cost_usd) + partsTotal, // Just for validation if needed, though schema currently uses these separately
+            labor_cost_usd: parseFloat(formData.labor_cost_usd) || 0,
+            notes: formData.missing_part_note || undefined, // Mapping note to schema's notes for now or adjust schema
+        };
+
+        const result = WorkOrderSchema.safeParse(validationData);
+
+        if (!result.success) {
+            const errors: Record<string, string> = {};
+            result.error.issues.forEach(issue => {
+                const path = issue.path[0] as string;
+                errors[path] = issue.message;
+            });
+            setFieldErrors(errors);
+            toast.error('Corrige los errores en el formulario');
+            return;
+        }
+
+        const payload = {
+            customer_id: result.data.customer_id,
+            device_model: result.data.device_model,
+            device_imei: result.data.device_imei,
+            problem_description: result.data.problem_description,
+            priority: formData.priority,
+            service_type: result.data.service_type,
             quick_service_tag: formData.quick_service_tag || undefined,
             repair_type: formData.repair_type,
             estimated_delivery: formData.estimated_delivery || undefined,
-            labor_cost_usd: parseFloat(formData.labor_cost_usd) || 0,
+            labor_cost_usd: result.data.labor_cost_usd,
             items_to_consume: itemsToConsume.map(item => ({
                 product_id: item.product_id,
                 quantity: item.quantity
@@ -326,6 +351,7 @@ export default function WorkOrderForm({ isOpen, onClose, order }: WorkOrderFormP
                                                 </button>
                                             ))}
                                         </div>
+                                        {fieldErrors.service_type && <p className="text-[10px] text-rose-500 font-bold px-1">{fieldErrors.service_type}</p>}
                                     </div>
 
                                     {formData.service_type === 'HARDWARE' && (
@@ -400,6 +426,7 @@ export default function WorkOrderForm({ isOpen, onClose, order }: WorkOrderFormP
                                                 </div>
                                             </div>
                                         )}
+                                        {fieldErrors.customer_id && <p className="text-[10px] text-rose-500 font-bold px-1">{fieldErrors.customer_id}</p>}
                                     </div>
 
                                     <div className="grid grid-cols-2 gap-4">
@@ -438,6 +465,7 @@ export default function WorkOrderForm({ isOpen, onClose, order }: WorkOrderFormP
                                                 onChange={(e) => setFormData({ ...formData, model: e.target.value })}
                                             />
                                         </div>
+                                        {fieldErrors.device_model && <div className="col-span-2"><p className="text-[10px] text-rose-500 font-bold px-1">{fieldErrors.device_model}</p></div>}
                                         <div className="col-span-2 space-y-2">
                                             <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest px-1">Falla Reportada</label>
                                             <textarea
@@ -446,6 +474,7 @@ export default function WorkOrderForm({ isOpen, onClose, order }: WorkOrderFormP
                                                 value={formData.problem_description}
                                                 onChange={(e) => setFormData({ ...formData, problem_description: e.target.value })}
                                             />
+                                            {fieldErrors.problem_description && <p className="text-[10px] text-rose-500 font-bold px-1">{fieldErrors.problem_description}</p>}
                                         </div>
                                     </div>
 

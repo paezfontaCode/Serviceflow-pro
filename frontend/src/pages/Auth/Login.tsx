@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useAuthStore } from '../../store/authStore';
 import { client } from '../../services/api/client';
 import { Wrench, Lock, User, AlertCircle, ArrowRight, Zap } from 'lucide-react';
@@ -11,7 +11,7 @@ export default function Login() {
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
     const [isLoading, setIsLoading] = useState(false);
-    
+
     // Zustand Store
     const setAuth = useAuthStore((state) => state.setAuth);
     const navigate = useNavigate();
@@ -38,8 +38,8 @@ export default function Login() {
             setAuth(data.access_token, data.refresh_token, userResponse.data);
             navigate('/dashboard');
         } catch (err: any) {
-             let errorMessage = 'Credenciales inválidas';
-            
+            let errorMessage = 'Credenciales inválidas';
+
             if (err.response?.data) {
                 const data = err.response.data;
                 if (data.detail && Array.isArray(data.detail)) {
@@ -68,8 +68,8 @@ export default function Login() {
 
             {/* Left Panel - Visual (Hidden on mobile) */}
             <div className="hidden lg:flex lg:w-1/2 relative z-10 flex-col justify-center px-16 xl:px-24">
-                 
-                 <div className="relative">
+
+                <div className="relative">
                     <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/5 border border-white/10 backdrop-blur-md mb-6 w-fit animate-fade-in-up">
                         <span className="flex h-2 w-2 rounded-full bg-success animate-pulse"></span>
                         <span className="text-xs font-medium text-slate-300">Sistema Operativo v2.0</span>
@@ -79,7 +79,7 @@ export default function Login() {
                         Gestión Técnica <br />
                         <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary-400 to-secondary-400">Inteligente</span>
                     </h1>
-                    
+
                     <p className="text-lg text-slate-400 max-w-lg mb-8 leading-relaxed animate-fade-in-up delay-200">
                         Optimiza tu taller con ServiceFlow. Control total sobre reparaciones, inventario y ventas en una interfaz diseñada para profesionales.
                     </p>
@@ -94,7 +94,7 @@ export default function Login() {
                                 <p className="text-xs text-slate-400">Uptime</p>
                             </div>
                         </div>
-                         <div className="glass-card p-4 rounded-2xl flex items-center gap-4 min-w-[180px]">
+                        <div className="glass-card p-4 rounded-2xl flex items-center gap-4 min-w-[180px]">
                             <div className="p-3 bg-secondary-500/20 rounded-xl text-secondary-500">
                                 <Wrench size={24} />
                             </div>
@@ -104,7 +104,7 @@ export default function Login() {
                             </div>
                         </div>
                     </div>
-                 </div>
+                </div>
             </div>
 
             {/* Right Panel - Login Form */}
@@ -112,7 +112,7 @@ export default function Login() {
                 <div className="w-full max-w-md">
                     {/* Glass Card Container */}
                     <div className="glass-card p-8 md:p-10 rounded-3xl relative overflow-hidden backdrop-blur-xl border border-white/10 shadow-2xl animate-fade-in">
-                        
+
                         {/* Header */}
                         <div className="text-center mb-10">
                             <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-primary-500 to-secondary-600 shadow-neon mb-6 transform hover:scale-105 transition-transform duration-500">
@@ -122,7 +122,7 @@ export default function Login() {
                             <p className="text-slate-400 text-sm">Ingresa tus credenciales para acceder al panel</p>
                         </div>
 
-                         {/* Error Alert */}
+                        {/* Error Alert */}
                         {error && (
                             <div className="mb-6 p-4 bg-rose-500/10 border border-rose-500/20 rounded-xl flex items-start gap-3 animate-pulse">
                                 <AlertCircle className="w-5 h-5 text-rose-400 flex-shrink-0 mt-0.5" />
@@ -157,9 +157,9 @@ export default function Login() {
                                     <input type="checkbox" className="rounded bg-slate-800 border-slate-700 text-primary-500 focus:ring-primary-500/50 transition-colors" />
                                     <span className="text-slate-400 group-hover:text-slate-300 transition-colors">Recordarme</span>
                                 </label>
-                                <a href="#" className="text-primary-400 hover:text-primary-300 font-medium transition-colors">
+                                <Link to="/forgot-password" title="Click para recuperar contraseña" className="text-primary-400 hover:text-primary-300 font-medium transition-colors">
                                     ¿Olvidaste tu contraseña?
-                                </a>
+                                </Link>
                             </div>
 
                             <button
@@ -181,8 +181,8 @@ export default function Login() {
                             </button>
                         </form>
 
-                         {/* Footer Links */}
-                         <div className="mt-8 pt-6 border-t border-white/5 text-center">
+                        {/* Footer Links */}
+                        <div className="mt-8 pt-6 border-t border-white/5 text-center">
                             <p className="text-sm text-slate-500">
                                 ¿No tienes cuenta?{' '}
                                 <span className="text-slate-400 font-medium cursor-not-allowed" title="Contacta al administrador">
@@ -191,7 +191,7 @@ export default function Login() {
                             </p>
                         </div>
                     </div>
-                     <p className="text-center text-xs text-slate-600 mt-6 font-mono">
+                    <p className="text-center text-xs text-slate-600 mt-6 font-mono">
                         ServiceFlow Pro v2.0 • 2024
                     </p>
                 </div>

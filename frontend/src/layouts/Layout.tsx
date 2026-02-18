@@ -14,7 +14,8 @@ import {
   Menu,
   X,
   CreditCard,
-  History
+  History,
+  Truck
 } from 'lucide-react';
 import PermissionGuard from '../components/PermissionGuard';
 
@@ -36,6 +37,7 @@ export default function Layout() {
     { to: '/repairs', icon: Wrench, label: t('sidebar.repairs'), roles: ['admin', 'tecnico'] },
     { to: '/inventory', icon: Package, label: t('sidebar.inventory'), roles: ['admin', 'vendedor'] },
     { to: '/finance', icon: CreditCard, label: t('sidebar.finance'), roles: ['admin'] },
+    { to: '/purchases', icon: Truck, label: t('sidebar.purchases'), roles: ['admin'] },
     { to: '/customers', icon: Users, label: t('sidebar.customers'), roles: ['admin', 'vendedor'] },
     { to: '/reports', icon: FileText, label: t('sidebar.reports'), roles: ['admin'] },
     { to: '/settings', icon: Settings, label: t('sidebar.settings'), roles: ['admin'] },

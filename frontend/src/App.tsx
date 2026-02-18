@@ -1,5 +1,6 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
 import Login from './pages/Auth/Login';
+import ResetPassword from './pages/Auth/ResetPassword';
 import Dashboard from './pages/Dashboard';
 import Layout from './layouts/Layout';
 import PermissionGuard from './components/PermissionGuard';
@@ -15,11 +16,14 @@ import Settings from './pages/Settings';
 import SalesHistory from './pages/SalesHistory';
 import Expenses from './pages/Expenses';
 import Logistics from './pages/Logistics';
+import Purchases from './pages/Purchases';
 
 function App() {
     return (
         <Routes>
             <Route path="/login" element={<Login />} />
+            <Route path="/forgot-password" element={<ResetPassword />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
 
             {/* Protected Routes Wrapper */}
             <Route path="/" element={
@@ -61,6 +65,11 @@ function App() {
                 <Route path="finance" element={
                     <PermissionGuard allowedRoles={['admin']}>
                         <Finance />
+                    </PermissionGuard>
+                } />
+                <Route path="purchases" element={
+                    <PermissionGuard allowedRoles={['admin']}>
+                        <Purchases />
                     </PermissionGuard>
                 } />
                 <Route path="expenses" element={

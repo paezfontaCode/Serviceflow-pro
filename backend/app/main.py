@@ -25,7 +25,7 @@ from .core.exceptions import register_exception_handlers
 from .api.v1 import (
     auth, customers, inventory, sales, finance, 
     repairs, dashboard, purchases, expenses, reports, 
-    users, settings as settings_router, health
+    users, settings as settings_router, health, audit
 )
 
 
@@ -177,6 +177,7 @@ app.include_router(dashboard.router, prefix=f"{settings.API_V1_STR}/dashboard", 
 app.include_router(expenses.router, prefix=f"{settings.API_V1_STR}/expenses", tags=["Expenses"])
 app.include_router(reports.router, prefix=f"{settings.API_V1_STR}/reports", tags=["Reports"])
 app.include_router(purchases.router, prefix=f"{settings.API_V1_STR}/purchases", tags=["Purchases"])
+app.include_router(audit.router, prefix=f"{settings.API_V1_STR}/audit", tags=["Audit"])
 app.include_router(health.router, prefix=f"{settings.API_V1_STR}", tags=["Health"])
 
 

@@ -11,6 +11,22 @@
         "reports": "Reportes",
         "settings": "Configuración"
     },
+    "common": {
+        "loading": "Cargando...",
+        "error": "Error",
+        "success": "Éxito",
+        "save": "Guardar",
+        "cancel": "Cancelar",
+        "delete": "Eliminar",
+        "search": "Buscar...",
+        "export": "Exportar",
+        "import": "Importar",
+        "actions": "Acciones"
+    },
+    "dashboard": {
+        "title": "Centro de Comando",
+        "subtitle": "Visión general y alertas operativas"
+    },
     "history_page": {
         "title": "Historial de Ventas",
         "subtitle": "Consulta y gestiona todas las ventas realizadas",
@@ -28,6 +44,76 @@
         "table_paid_rest": "Abonado / Resta",
         "table_status": "Estado",
         "table_actions": "Acciones"
+    },
+    "pos": {
+        "title": "Punto de Venta",
+        "session_status": "Estado de Caja",
+        "open": "Abierta",
+        "closed": "Cerrada",
+        "close_session": "Cerrar Caja",
+        "new_order": "Nueva Orden",
+        "open_modal": {
+            "title": "Apertura de Caja",
+            "subtitle": "Ingresa el efectivo inicial disponible",
+            "usd_label": "Efectivo USD",
+            "ves_label": "Efectivo VES",
+            "submit": "Iniciar Turno"
+        },
+        "close_modal": {
+            "title": "Cierre de Caja"
+        }
+    },
+    "repairs": {
+        "title": "Centro de Reparaciones",
+        "subtitle": "Gestión de órdenes de servicio y flujo técnico"
+    },
+    "inventory": {
+        "title": "Gestión de Inventario",
+        "subtitle": "Control de stock, repuestos y suministros",
+        "stats": {
+            "total_products": "Total Productos",
+            "inventory_value": "Valor Inventario",
+            "low_stock": "Bajo Stock",
+            "out_of_stock": "Sin Stock"
+        }
+    },
+    "expenses": {
+        "title": "Gastos Operativos",
+        "subtitle": "Control de egresos y flujo de caja"
+    },
+    "customers": {
+        "title": "Gestión de Clientes",
+        "subtitle": "Base de datos centralizada de clientes y su historial"
+    },
+    "finance": {
+        "title": "Módulo Financiero",
+        "subtitle": "Consolidado general y control de flujo de caja",
+        "tabs": {
+            "sessions": "Historial de Sesiones",
+            "debtors": "Lista de Morosos"
+        },
+        "stats": {
+            "estimated_profit": "Utilidad Estimada",
+            "receivables": "Cuentas por Cobrar",
+            "risk_amount": "Monto en Riesgo"
+        },
+        "table": {
+            "code_date": "Código / Fecha",
+            "opening": "Apertura",
+            "expected_close": "Cierre Esperado",
+            "difference": "Diferencia",
+            "status": "Estado"
+        }
+    },
+    "reports": {
+        "title": "Reportes y Analítica",
+        "subtitle": "Visualización de rendimiento y exportación de datos",
+        "kpis": {
+            "total_sales": "Ventas Totales",
+            "orders": "Órdenes",
+            "services": "Servicios",
+            "avg_ticket": "Ticket Promedio"
+        }
     },
     "settings": {
         "title": "Configuración del Sistema",

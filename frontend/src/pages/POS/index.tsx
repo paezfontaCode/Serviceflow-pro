@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Wallet, Loader2, Maximize2, Minimize2, Plus, ArrowRight } from 'lucide-react';
 import ProductCatalog from './components/ProductCatalog';
 import CartPanel from './components/CartPanel';
@@ -13,6 +14,7 @@ import { POSLayout } from './components/POSLayout';
 import { formatUSD, formatVES } from '@/utils/currency';
 
 export default function POS() {
+    const { t } = useTranslation();
     const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
     const [isWorkOrderOpen, setIsWorkOrderOpen] = useState(false);
     const [isOpenSessionModalOpen, setIsOpenSessionModalOpen] = useState(false);
@@ -60,9 +62,9 @@ export default function POS() {
                         <div className="flex items-center gap-3">
                             <div className={`w-2.5 h-2.5 rounded-full ${activeSession ? 'bg-emerald-500 shadow-lg shadow-emerald-500/20 animate-pulse' : 'bg-rose-500'}`}></div>
                             <div className="flex flex-col">
-                                <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Estado de Caja</span>
+                                <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">{t('pos.session_status')}</span>
                                 <span className="text-xs font-black text-slate-300">
-                                    {activeSession ? `ABIERTA #${activeSession.session_code.split('-').pop()}` : 'CERRADA'}
+                                    {activeSession ? `${t('pos.open')} #${activeSession.session_code.split('-').pop()}` : t('pos.closed')}
                                 </span>
                             </div>
                         </div>
@@ -88,7 +90,7 @@ export default function POS() {
                                 className="flex items-center gap-2 bg-rose-500/10 text-rose-400 hover:bg-rose-500 hover:text-white px-3 py-2 rounded-xl border border-rose-500/20 transition-all text-[10px] font-black uppercase tracking-widest group"
                             >
                                 <Wallet size={14} className="group-hover:scale-110 transition-transform" />
-                                <span className="hidden sm:inline">Cerrar Caja</span>
+                                <span className="hidden sm:inline">{t('pos.close_session')}</span>
                             </button>
                         )}
 
@@ -97,7 +99,7 @@ export default function POS() {
                             className="flex items-center gap-2 bg-primary-500/10 text-primary-400 hover:bg-primary-500 hover:text-white px-3 py-2 rounded-xl border border-primary-500/20 transition-all text-[10px] font-black uppercase tracking-widest group"
                         >
                             <Plus size={14} className="group-hover:rotate-90 transition-transform" />
-                            <span className="hidden sm:inline">Nueva Orden</span>
+                            <span className="hidden sm:inline">{t('pos.new_order')}</span>
                         </button>
 
                         <button

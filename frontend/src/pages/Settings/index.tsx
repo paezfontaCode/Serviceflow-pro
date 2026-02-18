@@ -1,6 +1,10 @@
 import { useState, useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { formatExchangeRate, parseLocaleNumber } from '../../utils/currency';
+import { auditService, AuditLog } from '../../services/api/auditService';
+import Pagination from '../../components/Pagination';
+import { format } from 'date-fns';
 import {
     Globe,
     Bell,
@@ -18,7 +22,9 @@ import {
     AlertTriangle,
     RefreshCw,
     Minus,
-    Languages
+    Languages,
+    History,
+    Eye
 } from 'lucide-react';
 import { settingsService, SystemSettings } from '../../services/api/settingsService';
 import { userService, User } from '../../services/api/userService';
@@ -27,7 +33,7 @@ import { client } from '../../services/api/client';
 import { toast } from 'sonner';
 import UserModal from './components/UserModal';
 
-type SettingsTab = 'business' | 'users' | 'notifications' | 'security' | 'currency' | 'language' | 'database' | 'integrations' | 'danger';
+type SettingsTab = 'business' | 'users' | 'notifications' | 'security' | 'audit' | 'currency' | 'language' | 'database' | 'integrations' | 'danger';
 
 export default function Settings() {
     const { t, i18n } = useTranslation();
@@ -42,6 +48,8 @@ export default function Settings() {
     const [editingUser, setEditingUser] = useState<User | null>(null);
     const [isEditingRate, setIsEditingRate] = useState(false);
     const [newRate, setNewRate] = useState('');
+    const [auditPage, setAuditPage] = useState(1);
+    const [auditFilter, setAuditFilter] = useState({ action: '', target_type: '' });
 
     // Action States
     const [showConfirm, setShowConfirm] = useState<{ show: boolean, type: 'reset' | 'sessions' | 'policy' | 'backup' | 'optimize' }>({ show: false, type: 'reset' });
@@ -355,6 +363,15 @@ export default function Settings() {
                         {renderDangerZone()}
                     </div>
                 );
+            case 'audit':
+                return (
+                    <AuditLogSection
+                        page={auditPage}
+                        onPageChange={setAuditPage}
+                        filters={auditFilter}
+                        setFilters={setAuditFilter}
+                    />
+                );
             case 'currency':
                 return (
                     <div className="glass-card p-8 border-white/5 space-y-8">
@@ -664,6 +681,12 @@ export default function Settings() {
                         onClick={() => setActiveTab('security')}
                     />
                     <SettingsNav
+                        active={activeTab === 'audit'}
+                        icon={History}
+                        label="Log de Auditoría"
+                        onClick={() => setActiveTab('audit')}
+                    />
+                    <SettingsNav
                         active={activeTab === 'currency'}
                         icon={Globe}
                         label="Moneda y Tasas"
@@ -832,6 +855,145 @@ function ActionBox({ icon: Icon, title, description, buttonLabel, onClick }: any
             >
                 {buttonLabel}
             </button>
+        </div>
+    );
+}
+
+
+function AuditLogSection({ page, onPageChange, filters, setFilters }: any) {
+    const { data: pagination, isLoading } = useQuery({
+        queryKey: ['auditLogs', page, filters],
+        queryFn: () => auditService.getLogs({ page, size: 10, ...filters })
+    });
+
+    const [selectedLog, setSelectedLog] = useState<AuditLog | null>(null);
+
+    const logs = pagination?.items || [];
+
+    return (
+        <div className="glass-card p-8 border-white/5 space-y-6 flex flex-col min-h-[600px]">
+            <div className="flex justify-between items-center">
+                <SectionHeader icon={History} title="Log de Auditoría" subtitle="Seguimiento de acciones críticas del sistema" />
+                <div className="flex gap-2">
+                    <select
+                        value={filters.action}
+                        onChange={(e) => setFilters({ ...filters, action: e.target.value })}
+                        className="bg-white/5 border border-white/5 rounded-xl px-3 py-2 text-xs text-slate-400 outline-none"
+                    >
+                        <option value="">Todas las acciones</option>
+                        <option value="CREATE">CREATE</option>
+                        <option value="UPDATE">UPDATE</option>
+                        <option value="DELETE">DELETE</option>
+                    </select>
+                    <select
+                        value={filters.target_type}
+                        onChange={(e) => setFilters({ ...filters, target_type: e.target.value })}
+                        className="bg-white/5 border border-white/5 rounded-xl px-3 py-2 text-xs text-slate-400 outline-none"
+                    >
+                        <option value="">Todas las entidades</option>
+                        <option value="SALE">SALE</option>
+                        <option value="PRODUCT">PRODUCT</option>
+                        <option value="REPAIR">REPAIR</option>
+                        <option value="EXPENSE">EXPENSE</option>
+                        <option value="USER">USER</option>
+                    </select>
+                </div>
+            </div>
+
+            <div className="flex-1 overflow-auto rounded-xl border border-white/5">
+                <table className="w-full text-left">
+                    <thead className="bg-white/5 text-[10px] font-black uppercase tracking-widest text-slate-500">
+                        <tr>
+                            <th className="px-6 py-4">Fecha / Usuario</th>
+                            <th className="px-6 py-4">Acción</th>
+                            <th className="px-6 py-4">Entidad</th>
+                            <th className="px-6 py-4">ID</th>
+                            <th className="px-6 py-4 text-right">Detalles</th>
+                        </tr>
+                    </thead>
+                    <tbody className="divide-y divide-white/5">
+                        {isLoading ? (
+                            <tr><td colSpan={5} className="p-12 text-center text-slate-500">Cargando logs...</td></tr>
+                        ) : logs.length === 0 ? (
+                            <tr><td colSpan={5} className="p-12 text-center text-slate-500">No hay registros de auditoría</td></tr>
+                        ) : logs.map((log: any) => (
+                            <tr key={log.id} className="group hover:bg-white/[0.02] transition-colors">
+                                <td className="px-6 py-4 whitespace-nowrap">
+                                    <div className="text-xs font-bold text-white">{format(new Date(log.created_at), 'dd/MM/yy HH:mm:ss')}</div>
+                                    <div className="text-[10px] text-slate-500 flex items-center gap-1">
+                                        <Users size={10} />
+                                        {log.username || 'Sistema'}
+                                    </div>
+                                </td>
+                                <td className="px-6 py-4">
+                                    <span className={`px-2 py-0.5 rounded text-[10px] font-black ${log.action === 'CREATE' ? 'bg-emerald-500/10 text-emerald-400' :
+                                        log.action === 'UPDATE' ? 'bg-blue-500/10 text-blue-400' :
+                                            'bg-rose-500/10 text-rose-400'
+                                        }`}>
+                                        {log.action}
+                                    </span>
+                                </td>
+                                <td className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                                    {log.target_type}
+                                </td>
+                                <td className="px-6 py-4 text-xs font-bold text-slate-300">
+                                    #{log.target_id}
+                                </td>
+                                <td className="px-6 py-4 text-right">
+                                    <button
+                                        onClick={() => setSelectedLog(log)}
+                                        className="p-2 hover:bg-white/5 rounded-lg text-slate-400 hover:text-primary-400 transition-colors"
+                                    >
+                                        <Eye size={16} />
+                                    </button>
+                                </td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
+
+            <Pagination
+                currentPage={page}
+                totalPages={pagination?.pages || 0}
+                totalItems={pagination?.total || 0}
+                itemsOnPage={logs.length}
+                onPageChange={onPageChange}
+            />
+
+            {selectedLog && (
+                <div className="fixed inset-0 z-[2001] flex items-center justify-center p-4 backdrop-blur-sm bg-black/60">
+                    <div className="glass-card w-full max-w-2xl border-white/10 overflow-hidden animate-scale-in flex flex-col max-h-[80vh]">
+                        <div className="p-6 border-b border-white/5 flex justify-between items-center">
+                            <div className="flex items-center gap-3">
+                                <History size={20} className="text-primary-400" />
+                                <h3 className="text-lg font-black text-white uppercase tracking-tight">Detalle de Auditoría #{selectedLog.id}</h3>
+                            </div>
+                            <button onClick={() => setSelectedLog(null)} className="text-slate-500 hover:text-white transition-colors">
+                                <Plus className="rotate-45" size={24} />
+                            </button>
+                        </div>
+                        <div className="p-6 overflow-auto scrollbar-hide space-y-6">
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="p-4 rounded-xl bg-white/5 border border-white/5">
+                                    <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Entidad</p>
+                                    <p className="font-bold text-white uppercase">{selectedLog.target_type} #{selectedLog.target_id}</p>
+                                </div>
+                                <div className="p-4 rounded-xl bg-white/5 border border-white/5">
+                                    <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Acción</p>
+                                    <p className="font-bold text-white uppercase">{selectedLog.action}</p>
+                                </div>
+                            </div>
+                            <div className="p-4 rounded-xl bg-slate-900 border border-white/5 font-mono text-xs">
+                                <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 font-sans">Cambios (JSON)</p>
+                                <pre className="text-emerald-400 overflow-x-auto">
+                                    {JSON.stringify(selectedLog.details, null, 2)}
+                                </pre>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

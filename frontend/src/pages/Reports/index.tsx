@@ -27,8 +27,10 @@ import {
 } from 'recharts';
 import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 
 export default function Reports() {
+    const { t } = useTranslation();
     const [isMounted, setIsMounted] = useState(false);
 
     useEffect(() => {
@@ -62,10 +64,10 @@ export default function Reports() {
 
     // Default values to prevent crashes if data is loading
     const kpiData = summary || [
-        { label: "Ventas Totales", value: 0, trend: "0%", icon: "DollarSign" },
-        { label: "Órdenes", value: "0", trend: "0%", icon: "ShoppingBag" },
-        { label: "Servicios", value: "0", trend: "0%", icon: "Wrench" },
-        { label: "Ticket Promedio", value: 0, trend: "0%", icon: "TrendingUp" }
+        { label: t('reports.kpis.total_sales'), value: 0, trend: "0%", icon: "DollarSign" },
+        { label: t('reports.kpis.orders'), value: "0", trend: "0%", icon: "ShoppingBag" },
+        { label: t('reports.kpis.services'), value: "0", trend: "0%", icon: "Wrench" },
+        { label: t('reports.kpis.avg_ticket'), value: 0, trend: "0%", icon: "TrendingUp" }
     ];
 
     const chartData = monthlySales || [];
@@ -78,8 +80,8 @@ export default function Reports() {
             {/* Header */}
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
                 <div className="space-y-1">
-                    <h2 className="text-3xl font-black text-white tracking-tight">Reportes y Analítica</h2>
-                    <p className="text-slate-500 font-medium">Visualización de rendimiento y exportación de datos</p>
+                    <h2 className="text-3xl font-black text-white tracking-tight">{t('reports.title')}</h2>
+                    <p className="text-slate-500 font-medium">{t('reports.subtitle')}</p>
                 </div>
 
                 <div className="flex items-center gap-3">
@@ -141,7 +143,7 @@ export default function Reports() {
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 {/* Sales Chart */}
-                <div className="lg:col-span-2 glass-card p-8 border-white/5 space-y-8">
+                <div className="lg:col-span-2 glass-card p-4 md:p-8 border-white/5 space-y-8">
                     <div className="flex justify-between items-center">
                         <h3 className="text-lg font-black text-white uppercase tracking-tight flex items-center gap-2">
                             <BarChart3 className="text-primary-400" size={20} />
@@ -177,7 +179,7 @@ export default function Reports() {
                 </div>
 
                 {/* Categories Chart */}
-                <div className="glass-card p-8 border-white/5 space-y-8">
+                <div className="glass-card p-4 md:p-8 border-white/5 space-y-8">
                     <h3 className="text-lg font-black text-white uppercase tracking-tight flex items-center gap-2">
                         <PieChartIcon className="text-secondary-400" size={20} />
                         Ventas por Categoría

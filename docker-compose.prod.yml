@@ -1,0 +1,91 @@
+# Production Docker Compose for ServiceFlow Pro
+# Usage: docker compose -f docker-compose.prod.yml up -d
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: serviceflow-db-prod
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - postgres_data_prod:/var/lib/postgresql/data
+    # Port 5432 NOT exposed for security
+    networks:
+      - serviceflow-network-prod
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: serviceflow-redis-prod
+    restart: unless-stopped
+    # Port 6379 NOT exposed
+    networks:
+      - serviceflow-network-prod
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build: ./backend
+    container_name: serviceflow-backend-prod
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+      SECRET_KEY: ${SECRET_KEY}
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS}
+      ENVIRONMENT: production
+      DEBUG: "false"
+      PROJECT_NAME: ${PROJECT_NAME}
+      REDIS_URL: redis://redis:6379/0
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    # Using Gunicorn in entrypoint.sh (or CMD here if not modified)
+    networks:
+      - serviceflow-network-prod
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        VITE_API_URL: /api/v1
+    container_name: serviceflow-frontend-prod
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443" # Prepared for SSL
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - serviceflow-network-prod
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+volumes:
+  postgres_data_prod:
+    name: serviceflow_postgres_data_prod
+
+networks:
+  serviceflow-network-prod:
+    name: serviceflow_network_prod
+    driver: bridge

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
     Users, Search, UserPlus, Mail, Phone, ChevronRight,
     Loader2, Filter, Edit2, Trash2, History, Wrench, ShoppingCart, ArrowRight,
@@ -11,6 +12,7 @@ import CustomerForm from '@/components/customers/CustomerForm';
 import CustomerImportModal from '@/components/customers/ImportModal';
 
 export default function Customers() {
+    const { t } = useTranslation();
     const [searchTerm, setSearchTerm] = useState('');
     const [isFormOpen, setIsFormOpen] = useState(false);
     const [isImportModalOpen, setIsImportModalOpen] = useState(false);
@@ -95,8 +97,8 @@ export default function Customers() {
             {/* Header */}
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
                 <div className="space-y-1">
-                    <h2 className="text-3xl font-black text-white tracking-tight">Gestión de Clientes</h2>
-                    <p className="text-slate-500 font-medium">Base de datos centralizada de clientes y su historial</p>
+                    <h2 className="text-3xl font-black text-white tracking-tight">{t('customers.title')}</h2>
+                    <p className="text-slate-500 font-medium">{t('customers.subtitle')}</p>
                 </div>
 
                 <div className="flex items-center gap-3">

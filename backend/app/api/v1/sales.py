@@ -238,7 +238,10 @@ def get_sales_history(
     start_date: Optional[date] = None,
     end_date: Optional[date] = None,
     customer_id: Optional[int] = None,
-    payment_status: Optional[str] = None
+    payment_status: Optional[str] = None,
+    page: int = 1,
+    size: int = 20,
+    search: Optional[str] = None
 ):
     """Returns sales history with filters and summary totals"""
     query = db.query(Sale)
@@ -251,8 +254,19 @@ def get_sales_history(
         query = query.filter(Sale.customer_id == customer_id)
     if payment_status:
         query = query.filter(Sale.payment_status == payment_status)
+    
+    if search:
+        search_filter = f"%{search}%"
+        query = query.join(Customer, isouter=True).filter(
+            (Sale.id.cast(func.text).ilike(search_filter)) |
+            (Customer.name.ilike(search_filter))
+        )
         
-    sales = query.order_by(Sale.created_at.desc()).all()
+    total = query.count()
+    pages = (total + size - 1) // size
+    skip = (page - 1) * size
+    
+    sales = query.order_by(Sale.created_at.desc()).offset(skip).limit(size).all()
     
     # Process sales to include derived fields
     processed_sales = []
@@ -302,9 +316,12 @@ def get_sales_history(
         total_pending_usd += pending_amount
         
     return {
-        "sales": processed_sales,
+        "items": processed_sales,
+        "total": total,
+        "page": page,
+        "size": size,
+        "pages": pages,
         "summary": {
-            "count": len(processed_sales),
             "total_revenue_usd": float(total_revenue_usd),
             "total_pending_usd": float(total_pending_usd)
         }
