@@ -86,6 +86,7 @@ show_menu() {
     echo "8) 🗑️  Limpiar sistema (Prune)"
     echo "9) 💾 Crear backup de la base de datos"
     echo "10) ♻️ Restaurar backup"
+    echo "11) 🧹 Reset total de base de datos (BORRA TODO)"
     echo "q) Salir"
     echo ""
 }
@@ -141,6 +142,22 @@ while true; do
                 ./scripts/restore.sh "$backup_file"
             else
                 echo -e "${RED}Archivo no encontrado.${NC}"
+            fi
+            ;;
+        11)
+            echo -e "${RED}⚠️  ¡ADVERTENCIA! Esta acción borrará permanentemente todos los datos de la base de datos.${NC}"
+            read -p "¿Estás ABSOLUTAMENTE seguro? (s/N): " confirm
+            if [[ "$confirm" =~ ^([sS][iI]|[sS])$ ]]; then
+                echo -e "${BLUE}🧹 Limpiando volúmenes de base de datos...${NC}"
+                $DOCKER_COMPOSE_CMD down -v
+                echo -e "${BLUE}🚀 Reiniciando servicios y recreando tablas...${NC}"
+                $DOCKER_COMPOSE_CMD up -d
+                echo -e "${BLUE}⏳ Esperando a que el backend esté listo...${NC}"
+                sleep 5
+                $DOCKER_COMPOSE_CMD exec -T backend python scripts/setup_database.py
+                echo -e "${GREEN}✅ Base de datos reseteada y limpia.${NC}"
+            else
+                echo "Operación cancelada."
             fi
             ;;
         q)
