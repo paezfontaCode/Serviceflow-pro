@@ -165,8 +165,8 @@ export default function Repairs() {
                   <tr className="border-b border-white/5 bg-white/5 sticky top-0 z-10">
                     <th className="p-4 text-[10px] font-black text-slate-500 uppercase tracking-widest">Orden / Fecha</th>
                     <th className="p-4 text-[10px] font-black text-slate-500 uppercase tracking-widest">Cliente / Equipo</th>
-                    <th className="p-4 text-[10px] font-black text-slate-500 uppercase tracking-widest">Problema</th>
-                    <th className="p-4 text-[10px] font-black text-slate-500 uppercase tracking-widest text-center">Estado</th>
+                    <th className="p-4 text-[10px] font-black text-slate-500 uppercase tracking-widest">Estado</th>
+                    <th className="p-4 text-[10px] font-black text-slate-500 uppercase tracking-widest">Entrega / Garantía</th>
                     <th className="p-4 text-[10px] font-black text-slate-500 uppercase tracking-widest text-right">Costo / Saldo</th>
                     <th className="p-4 text-[10px] font-black text-slate-500 uppercase tracking-widest text-center">Acciones</th>
                   </tr>
@@ -204,7 +204,7 @@ export default function Repairs() {
                         <td className="p-4">
                           <p className="text-xs text-slate-400 line-clamp-2 max-w-xs">{order.problem_description}</p>
                         </td>
-                        <td className="p-4 text-center">
+                        <td className="p-4">
                           <span className={`px-2 py-1 rounded text-[10px] font-black uppercase tracking-tighter ${order.status === 'RECEIVED' ? 'bg-blue-500/10 text-blue-400' :
                             order.status === 'DIAGNOSED' ? 'bg-amber-500/10 text-amber-400' :
                               order.status === 'REPAIRING' ? 'bg-primary-500/10 text-primary-400 shadow-glow-sm' :
@@ -214,6 +214,23 @@ export default function Repairs() {
                             }`}>
                             {order.status}
                           </span>
+                        </td>
+                        <td className="p-4">
+                          {order.status === 'DELIVERED' && order.delivered_at ? (
+                            <div className="flex flex-col gap-1">
+                              <div className="flex items-center gap-1.5 text-[10px] text-emerald-400 font-bold">
+                                <Clock size={12} />
+                                {format(new Date(order.delivered_at), 'dd/MM/yy')}
+                              </div>
+                              {order.is_warranty_active && order.warranty_expiration && (
+                                <div className="text-[9px] text-slate-500 bg-emerald-500/5 px-2 py-0.5 rounded border border-emerald-500/10 w-fit">
+                                  Garantía: {format(new Date(order.warranty_expiration), 'dd/MM/yy')}
+                                </div>
+                              )}
+                            </div>
+                          ) : (
+                            <span className="text-[10px] text-slate-600 font-bold uppercase tracking-widest">PENDIENTE</span>
+                          )}
                         </td>
                         <td className="p-4 text-right">
                           <div className="font-bold text-white">{formatUSD(Number(order.labor_cost_usd) + Number(order.parts_cost_usd))}</div>

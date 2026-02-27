@@ -116,7 +116,14 @@ export default function CartPanel({ onCheckout }: CartPanelProps) {
                                             <Wrench size={20} />
                                         </div>
                                         <div className="flex-1 min-w-0">
-                                            <p className="text-sm font-bold text-white truncate">{item.repair.brand} {item.repair.model}</p>
+                                            <div className="flex items-center justify-between mb-0.5">
+                                                <p className="text-sm font-bold text-white truncate">{item.repair.brand} {item.repair.model}</p>
+                                                {item.repair.status === 'READY' && (
+                                                    <span className="text-[8px] font-black bg-emerald-500/20 text-emerald-400 px-1.5 py-0.5 rounded border border-emerald-500/10 shrink-0">
+                                                        LISTO
+                                                    </span>
+                                                )}
+                                            </div>
                                             <p className="text-[10px] text-slate-500">#{item.repair.id.toString().padStart(5, '0')} • {item.repair.customer_name}</p>
 
                                             <div className="flex items-center justify-between mt-2">

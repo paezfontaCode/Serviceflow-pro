@@ -196,6 +196,7 @@ export default function ProductCatalog({ searchQuery }: ProductCatalogProps) {
                     brand: result.brand,
                     model: result.model,
                     remaining_balance: result.remaining_balance,
+                    status: result.status,
                     description: result.description
                   })}
                 />

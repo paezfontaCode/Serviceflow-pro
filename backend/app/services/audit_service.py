@@ -1,3 +1,6 @@
+import json
+import decimal
+from datetime import date, datetime
 from sqlalchemy import event, inspect
 from sqlalchemy.orm import Session
 from ..models.audit import AuditLog
@@ -40,12 +43,35 @@ def get_diff(target):
     """Utility to get changes between old and new state for an update."""
     state = inspect(target)
     changes = {}
+    
+    def serialize_val(val):
+        if val is None: return None
+        if isinstance(val, (str, int, float, bool)):
+            return val
+        if isinstance(val, date):
+            return val.isoformat()
+        if isinstance(val, decimal.Decimal):
+            return float(val)
+        # Handle SQLAlchemy models
+        if hasattr(val, '__tablename__'):
+            if hasattr(val, 'name') and val.name:
+                return str(val.name)
+            if hasattr(val, 'id'):
+                return val.id
+            return str(val)
+        # Fallback
+        try:
+            json.dumps(val)
+            return val
+        except:
+            return str(val)
+
     for attr in state.attrs:
         hist = attr.load_history()
         if hist.has_changes():
             changes[attr.key] = {
-                "old": hist.deleted[0] if hist.deleted else None,
-                "new": hist.added[0] if hist.added else None
+                "old": serialize_val(hist.deleted[0]) if hist.deleted else None,
+                "new": serialize_val(hist.added[0]) if hist.added else None
             }
     # Filter out sensitive fields
     sensitive = {"hashed_password", "token", "secret"}
@@ -149,7 +175,7 @@ def register_audit_listeners():
                 action="CREATE",
                 target_type="USER",
                 target_id=target.id,
-                details={"username": target.username, "role": target.role}
+                details={"username": target.username, "roles": [r.name for r in target.roles]}
             )
         )
 

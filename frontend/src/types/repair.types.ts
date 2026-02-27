@@ -44,6 +44,8 @@ export interface WorkOrder {
     balance_due_usd: number;
 
     is_warranty_active?: boolean;
+    warranty_expiration?: string;
+    delivered_at?: string;
     is_recurring?: boolean;
     previous_repair_id?: number;
     items: RepairItem[];

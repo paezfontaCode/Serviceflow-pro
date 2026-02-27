@@ -30,11 +30,11 @@ export default function ImportCSVModal({ isOpen, onClose, onSuccess }: ImportCSV
         e.preventDefault();
         setIsDragging(false);
         const files = e.dataTransfer.files;
-        if (files.length > 0 && files[0].name.endsWith('.csv')) {
+        if (files.length > 0 && (files[0].name.endsWith('.csv') || files[0].name.endsWith('.xlsx') || files[0].name.endsWith('.xls'))) {
             setFile(files[0]);
             setResult(null);
         } else {
-            toast.error('Por favor sube un archivo CSV válido');
+            toast.error('Por favor sube un archivo CSV o Excel válido');
         }
     };
 
@@ -93,7 +93,7 @@ export default function ImportCSVModal({ isOpen, onClose, onSuccess }: ImportCSV
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
             <div className="bg-[#0f172a] border border-white/10 rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden animate-scale-in">
-                
+
                 {/* Header */}
                 <div className="flex items-center justify-between p-6 border-b border-white/5 bg-white/5">
                     <h2 className="text-xl font-black text-white tracking-tight flex items-center gap-3">
@@ -102,7 +102,7 @@ export default function ImportCSVModal({ isOpen, onClose, onSuccess }: ImportCSV
                         </div>
                         Importar Productos
                     </h2>
-                    <button 
+                    <button
                         onClick={onClose}
                         className="p-2 hover:bg-white/10 rounded-lg text-slate-400 hover:text-white transition-colors"
                     >
@@ -112,11 +112,11 @@ export default function ImportCSVModal({ isOpen, onClose, onSuccess }: ImportCSV
 
                 {/* Content */}
                 <div className="p-6 space-y-6">
-                    
+
                     {!result ? (
                         <>
                             {/* Upload Area */}
-                            <div 
+                            <div
                                 className={`
                                     border-2 border-dashed rounded-xl p-8 text-center transition-all cursor-pointer
                                     ${isDragging ? 'border-primary-500 bg-primary-500/10' : 'border-white/10 hover:border-white/20 hover:bg-white/5'}
@@ -127,14 +127,14 @@ export default function ImportCSVModal({ isOpen, onClose, onSuccess }: ImportCSV
                                 onDrop={handleDrop}
                                 onClick={() => fileInputRef.current?.click()}
                             >
-                                <input 
-                                    type="file" 
+                                <input
+                                    type="file"
                                     ref={fileInputRef}
-                                    className="hidden" 
-                                    accept=".csv"
+                                    className="hidden"
+                                    accept=".csv, .xlsx, .xls"
                                     onChange={handleFileSelect}
                                 />
-                                
+
                                 {file ? (
                                     <div className="flex flex-col items-center gap-3 animate-fade-in">
                                         <div className="w-12 h-12 rounded-full bg-emerald-500/20 flex items-center justify-center text-emerald-400">
@@ -144,7 +144,7 @@ export default function ImportCSVModal({ isOpen, onClose, onSuccess }: ImportCSV
                                             <p className="font-bold text-white">{file.name}</p>
                                             <p className="text-xs text-slate-500">{(file.size / 1024).toFixed(1)} KB</p>
                                         </div>
-                                        <button 
+                                        <button
                                             onClick={(e) => { e.stopPropagation(); resetForm(); }}
                                             className="text-xs text-rose-400 hover:text-rose-300 hover:underline mt-2"
                                         >
@@ -155,8 +155,8 @@ export default function ImportCSVModal({ isOpen, onClose, onSuccess }: ImportCSV
                                     <div className="flex flex-col items-center gap-3 text-slate-400">
                                         <Upload size={32} className="opacity-50" />
                                         <div>
-                                            <p className="font-bold text-slate-300">Haz clic o arrastra tu CSV aquí</p>
-                                            <p className="text-xs mt-1 opacity-60">Soporta archivos .csv hasta 5MB</p>
+                                            <p className="font-bold text-slate-300">Haz clic o arrastra tu Excel/CSV aquí</p>
+                                            <p className="text-xs mt-1 opacity-60">Soporta .csv y .xlsx hasta 5MB</p>
                                         </div>
                                     </div>
                                 )}
@@ -164,7 +164,7 @@ export default function ImportCSVModal({ isOpen, onClose, onSuccess }: ImportCSV
 
                             {/* Template Link */}
                             <div className="text-center">
-                                <button 
+                                <button
                                     onClick={handleDownloadTemplate}
                                     className="text-xs text-primary-400 hover:text-primary-300 hover:underline flex items-center justify-center gap-1 mx-auto"
                                 >
@@ -190,18 +190,18 @@ export default function ImportCSVModal({ isOpen, onClose, onSuccess }: ImportCSV
                                     <p className="text-2xl font-black text-white">{result.errors}</p>
                                 </div>
                             </div>
-                            
+
                             {result.errors > 0 && (
                                 <div className="flex items-start gap-3 p-4 bg-rose-500/10 border border-rose-500/20 rounded-xl">
                                     <AlertCircle size={18} className="text-rose-500 shrink-0 mt-0.5" />
                                     <p className="text-xs text-rose-200">
-                                        Algunas filas no pudieron ser importadas. Revisa que el archivo tenga el formato correcto y todos los campos requeridos (nombre, sku).
+                                        Algunas filas no pudieron ser importadas. Revisa que el archivo tenga el formato correcto y todos los campos requeridos (nombre, sku). Si usas Excel, asegúrate de que sea formato .xlsx.
                                     </p>
                                 </div>
                             )}
 
                             <div className="flex justify-center pt-2">
-                                <button 
+                                <button
                                     onClick={resetForm}
                                     className="text-sm font-bold text-slate-400 hover:text-white transition-colors"
                                 >
@@ -219,7 +219,7 @@ export default function ImportCSVModal({ isOpen, onClose, onSuccess }: ImportCSV
                         >
                             {result ? 'Cerrar' : 'Cancelar'}
                         </button>
-                        
+
                         {!result && (
                             <button
                                 onClick={handleUpload}

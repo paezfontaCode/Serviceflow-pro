@@ -21,6 +21,7 @@ interface RepairOrder {
   model: string;
   remaining_balance: number;
   description: string;
+  status: string;
   created_at?: string;
 }
 
@@ -43,21 +44,21 @@ interface CartState {
   currency: 'VES' | 'USD';
   exchangeRateSnapshot: number;
   selectedCustomerId: number | null;
-  
+
   // Product methods
   addItem: (product: Product, quantity?: number) => void;
   removeItem: (productId: number) => void;
   updateQuantity: (productId: number, quantity: number) => void;
-  
+
   // Repair methods
   addRepairItem: (repair: RepairOrder) => void;
   removeRepairItem: (repairId: number) => void;
-  
+
   // General methods
   clearCart: () => void;
   setCurrency: (currency: 'VES' | 'USD') => void;
   setSelectedCustomer: (customerId: number | null) => void;
-  
+
   // Getters
   getProductItems: () => ProductCartItem[];
   getRepairItems: () => RepairCartItem[];
@@ -81,7 +82,7 @@ export const useCartStore = create<CartState>()(
         const rateToUse = exchangeRateSnapshot === 0 ? currentRate : exchangeRateSnapshot;
 
         const existingItem = items.find(
-          (item): item is ProductCartItem => 
+          (item): item is ProductCartItem =>
             item.type === 'product' && item.product.id === product.id
         );
 
@@ -128,13 +129,13 @@ export const useCartStore = create<CartState>()(
 
         // Check if repair already exists
         const exists = items.some(
-          (item): item is RepairCartItem => 
+          (item): item is RepairCartItem =>
             item.type === 'repair' && item.repair.id === repair.id
         );
 
         if (exists) return; // Don't add duplicates
 
-        set({ 
+        set({
           items: [...items, { type: 'repair', repair }],
           exchangeRateSnapshot: rateToUse,
           // Automate customer selection
@@ -150,14 +151,14 @@ export const useCartStore = create<CartState>()(
         }));
       },
 
-      clearCart: () => set({ 
-        items: [], 
+      clearCart: () => set({
+        items: [],
         exchangeRateSnapshot: 0,
-        selectedCustomerId: null 
+        selectedCustomerId: null
       }),
 
       setCurrency: (currency) => set({ currency }),
-      
+
       setSelectedCustomer: (customerId) => set({ selectedCustomerId: customerId }),
 
       getProductItems: () => {
@@ -175,7 +176,7 @@ export const useCartStore = create<CartState>()(
       getProductTotalUSD: () => {
         const productItems = get().getProductItems();
         return productItems.reduce(
-          (total, item) => total + item.product.price_usd * item.quantity, 
+          (total, item) => total + item.product.price_usd * item.quantity,
           0
         );
       },
@@ -183,7 +184,7 @@ export const useCartStore = create<CartState>()(
       getRepairTotalUSD: () => {
         const repairItems = get().getRepairItems();
         return repairItems.reduce(
-          (total, item) => total + item.repair.remaining_balance, 
+          (total, item) => total + item.repair.remaining_balance,
           0
         );
       },

@@ -32,6 +32,7 @@ import { financeService } from '../../services/api/financeService';
 import { client } from '../../services/api/client';
 import { toast } from 'sonner';
 import UserModal from './components/UserModal';
+import { useExchangeRateStore } from '../../store/exchangeRateStore';
 
 type SettingsTab = 'business' | 'users' | 'notifications' | 'security' | 'audit' | 'currency' | 'language' | 'database' | 'integrations' | 'danger';
 
@@ -50,6 +51,8 @@ export default function Settings() {
     const [newRate, setNewRate] = useState('');
     const [auditPage, setAuditPage] = useState(1);
     const [auditFilter, setAuditFilter] = useState({ action: '', target_type: '' });
+
+    const { setRate } = useExchangeRateStore();
 
     // Action States
     const [showConfirm, setShowConfirm] = useState<{ show: boolean, type: 'reset' | 'sessions' | 'policy' | 'backup' | 'optimize' }>({ show: false, type: 'reset' });
@@ -150,6 +153,10 @@ export default function Settings() {
                 rate: parsedRate,
                 source: 'Manual'
             });
+
+            // Sync with global store
+            setRate(parsedRate);
+
             await loadInitialData();
             setIsEditingRate(false);
             setNewRate(''); // Clear after success

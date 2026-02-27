@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
+import { useExchangeRateStore } from '../store/exchangeRateStore';
 import {
   LayoutDashboard,
   ShoppingCart,
@@ -23,7 +24,21 @@ export default function Layout() {
   const { t } = useTranslation();
   const [isSidebarOpen, setSidebarOpen] = useState(false);
   const { user, logout } = useAuthStore();
+  const { fetchRate } = useExchangeRateStore();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    // Initial fetch
+    fetchRate().catch(console.error);
+
+    // Periodic refresh every 30 minutes
+    const interval = setInterval(() => {
+      fetchRate().catch(console.error);
+    }, 30 * 60 * 1000);
+
+    return () => clearInterval(interval);
+  }, [fetchRate]);
+
 
   const handleLogout = () => {
     logout();

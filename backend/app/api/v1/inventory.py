@@ -318,28 +318,6 @@ def update_category(
     db.refresh(category)
     return category
 
-@router.delete("/categories/{category_id}")
-def delete_category(
-    category_id: int,
-    db: Session = Depends(get_db),
-    current_user = Depends(get_current_active_user)
-):
-    category = db.query(Category).filter(Category.id == category_id).first()
-    if not category:
-        raise HTTPException(status_code=404, detail="Category not found")
-    
-    # Check if category has products
-    products_count = db.query(Product).filter(Product.category_id == category_id).count()
-    if products_count > 0:
-        raise HTTPException(
-            status_code=400, 
-            detail=f"Cannot delete category with {products_count} products. Reassign products first."
-        )
-    
-    db.delete(category)
-    db.commit()
-    return {"message": "Category deleted successfully"}
-
 @router.get("/export-csv")
 def export_products_csv(
     db: Session = Depends(get_db),
@@ -380,90 +358,83 @@ async def import_products_csv(
     db: Session = Depends(get_db),
     current_user = Depends(get_current_active_user)
 ):
-    if not file.filename.endswith('.csv'):
-        raise HTTPException(status_code=400, detail="El archivo debe ser un CSV")
+    import pandas as pd
+    
+    # Check extension
+    is_excel = file.filename.endswith(('.xlsx', '.xls'))
+    is_csv = file.filename.endswith('.csv')
+    
+    if not (is_excel or is_csv):
+        raise HTTPException(status_code=400, detail="El archivo debe ser un CSV o Excel (.xlsx)")
     
     contents = await file.read()
+    
     try:
-        decoded = contents.decode('utf-8')
-    except UnicodeDecodeError:
-        decoded = contents.decode('latin-1')
+        if is_excel:
+            df = pd.read_excel(io.BytesIO(contents))
+        else:
+            # Handle CSV with potential encoding issues
+            try:
+                decoded = contents.decode('utf-8')
+            except UnicodeDecodeError:
+                decoded = contents.decode('latin-1')
+            
+            # Detect delimiter
+            delimiter = ','
+            if ';' in decoded and decoded.count(';') > decoded.count(','):
+                delimiter = ';'
+            
+            df = pd.read_csv(io.StringIO(decoded), sep=delimiter)
         
-    # Detect delimiter
-    delimiter = ','
-    if ';' in decoded and decoded.count(';') > decoded.count(','):
-        delimiter = ';'
+        # Clean columns: strip, lower, remove BOM
+        df.columns = [
+            str(c).strip().lower().replace('ï»¿', '') 
+            for c in df.columns
+        ]
         
-    input_file = io.StringIO(decoded)
-    
-    # Smart Header Detection
-    # Read first line to check if it's "Column1" type garbage
-    first_line = input_file.readline()
-    input_file.seek(0) # Reset to start
-    
-    if first_line and 'column1' in first_line.lower().replace(' ', ''):
-        # Detected garbage headers, skip first line
-        input_file.readline()
-        
-    reader = csv.DictReader(input_file, delimiter=delimiter)
-    
-    # Normalize headers
-    if reader.fieldnames:
-        reader.fieldnames = [field.strip().lower().replace('ï»¿', '') for field in reader.fieldnames]
-    
-    # Validation: Check for required columns
-    required_cols = {'sku', 'name'}
-    if not reader.fieldnames or not required_cols.issubset(set(reader.fieldnames)):
-        missing = required_cols - set(reader.fieldnames if reader.fieldnames else [])
-        found = reader.fieldnames if reader.fieldnames else "Ninguno"
-        raise HTTPException(
-            status_code=400, 
-            detail=f"Faltan columnas requeridas: {', '.join(missing)}. Columnas encontradas: {found}. Asegúrese de eliminar la fila de 'Column1' si existe."
-        )
-    
+        # Check requirements
+        required_cols = {'sku', 'name'}
+        if not required_cols.issubset(set(df.columns)):
+            missing = required_cols - set(df.columns)
+            raise HTTPException(
+                status_code=400, 
+                detail=f"Faltan columnas requeridas: {', '.join(missing)}. Columnas encontradas: {list(df.columns)}"
+            )
+            
+    except Exception as e:
+        if isinstance(e, HTTPException): raise e
+        raise HTTPException(status_code=400, detail=f"Error al procesar el archivo: {str(e)}")
+
     stats = {"created": 0, "updated": 0, "errors": 0}
     
-    for row in reader:
+    # Iterate through dataframe
+    for _, row in df.iterrows():
         try:
-            # Handle potential empty keys or BOM issues by filtering
-            row = {k: v for k, v in row.items() if k}
+            # Basic validation
+            sku_raw = str(row.get('sku', '')).strip()
+            sku = sku_raw if sku_raw and sku_raw.lower() != 'nan' else None
             
-            sku = row.get("sku")
-            # Normalize empty SKU to None to avoid unique constraint violations on empty strings
-            if sku is not None:
-                sku = sku.strip()
-                if not sku:
-                    sku = None
-            
-            name = row.get("name")
-            
-            # Skip empty rows
-            if not name and not sku:
-                continue
+            name = str(row.get('name', '')).strip()
+            if not name or name.lower() == 'nan':
+                if not sku: continue # Empty row
                 
-            # Use nested transaction to allow continuing on single row failure
+            # Helper to safely parse numbers from pandas
+            def safe_float(val, default=0.0):
+                try:
+                    if pd.isna(val): return default
+                    return float(val)
+                except:
+                    return default
+
+            price_usd = Decimal(str(safe_float(row.get('price_usd', 0.0))))
+            cost_usd = Decimal(str(safe_float(row.get('cost_usd', 0.0))))
+            quantity = int(safe_float(row.get('quantity', 0.0)))
+            
             with db.begin_nested():
-                # Helper to safely parse numbers
-                def parse_decimal(val):
-                    if not val: return Decimal(0)
-                    return Decimal(str(val).replace(',', '.').strip())
-
-                def parse_int(val):
-                    if not val: return 0
-                    try:
-                        return int(float(str(val).replace(',', '.').strip()))
-                    except ValueError:
-                        return 0
-
-                price_usd = parse_decimal(row.get("price_usd"))
-                cost_usd = parse_decimal(row.get("cost_usd"))
-                quantity = parse_int(row.get("quantity"))
-                
-                # Find category if name provided
+                # Category logic
                 category_id = None
-                cat_name = row.get("category")
-                if cat_name:
-                    cat_name = cat_name.strip()
+                cat_name = str(row.get('category', '')).strip()
+                if cat_name and cat_name.lower() != 'nan':
                     category = db.query(Category).filter(Category.name.ilike(cat_name)).first()
                     if not category:
                         category = Category(name=cat_name)
@@ -471,54 +442,58 @@ async def import_products_csv(
                         db.flush()
                     category_id = category.id
 
-                # Check if SKU exists
+                # Find product
                 existing_product = None
                 if sku:
                     existing_product = db.query(Product).filter(Product.sku == sku).first()
                 
                 if existing_product:
                     # Update
-                    existing_product.name = name if name else existing_product.name
+                    if name and name.lower() != 'nan':
+                        existing_product.name = name
                     existing_product.price_usd = price_usd
                     existing_product.cost_usd = cost_usd
-                    existing_product.brand = row.get("brand", existing_product.brand)
-                    existing_product.model = row.get("model", existing_product.model)
+                    
+                    brand = str(row.get('brand', '')).strip()
+                    if brand and brand.lower() != 'nan':
+                        existing_product.brand = brand
+                        
+                    model = str(row.get('model', '')).strip()
+                    if model and model.lower() != 'nan':
+                        existing_product.model = model
+                        
                     if category_id:
                         existing_product.category_id = category_id
                     existing_product.is_active = True
                     
-                    # Update inventory
-                    inventory = db.query(Inventory).filter(Inventory.product_id == existing_product.id).first()
-                    if inventory:
-                        inventory.quantity = quantity
+                    # Inventory
+                    inv_record = db.query(Inventory).filter(Inventory.product_id == existing_product.id).first()
+                    if inv_record:
+                        inv_record.quantity = quantity
                     stats["updated"] += 1
-                else:
-                    if not name: # Check name again for creation
-                        stats["errors"] += 1
-                        continue
-                        
+                elif name and name.lower() != 'nan':
                     # Create
                     new_product = Product(
                         sku=sku,
                         name=name,
                         price_usd=price_usd,
                         cost_usd=cost_usd,
-                        brand=row.get("brand"),
-                        model=row.get("model"),
+                        brand=str(row.get('brand', '')).strip() if str(row.get('brand', '')).lower() != 'nan' else None,
+                        model=str(row.get('model', '')).strip() if str(row.get('model', '')).lower() != 'nan' else None,
                         category_id=category_id
                     )
                     db.add(new_product)
                     db.flush()
                     
-                    # Create inventory
                     new_inventory = Inventory(product_id=new_product.id, quantity=quantity)
                     db.add(new_inventory)
                     stats["created"] += 1
-                
+                else:
+                    stats["errors"] += 1
+                    
         except Exception as e:
-            print(f"Error importing row {row}: {e}")
+            print(f"Error importing row: {e}")
             stats["errors"] += 1
-            # Explicitly rollback just in case nested transaction didn't catch everything
             db.rollback()
             continue
             

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
     X,
     CreditCard,
@@ -65,6 +66,20 @@ export default function PaymentModal({ isOpen, onClose }: PaymentModalProps) {
     const [showCustomerModal, setShowCustomerModal] = useState(false);
     const [pagoMovilData, setPagoMovilData] = useState<{ reference: string, phone?: string }>({ reference: '' });
     const queryClient = useQueryClient();
+    useTranslation();
+
+    // Helper: Calculate warranty expiration (7 business days, skipping Sundays)
+    const getWarrantyExpirationDate = () => {
+        const date = new Date();
+        let addedDays = 0;
+        const warrantyDays = 7;
+        while (addedDays < warrantyDays) {
+            date.setDate(date.getDate() + 1);
+            if (date.getDay() !== 0) addedDays++; // 0 is Sunday
+        }
+        return date;
+    };
+    const warrantyDate = getWarrantyExpirationDate();
 
     // Fetch customers
     const { data: customers } = useQuery({
@@ -137,9 +152,16 @@ export default function PaymentModal({ isOpen, onClose }: PaymentModalProps) {
 
             // Notify Success
             toast.success('Venta procesada exitosamente', {
-                description: hasPendingDebt
-                    ? `Saldo pendiente: ${formatUSD(pendingDebt)}`
-                    : `Tasa aplicada: ${activeRate} Bs.`,
+                description: (
+                    <div className="flex flex-col gap-1">
+                        <span>{hasPendingDebt ? `Saldo pendiente: ${formatUSD(pendingDebt)}` : 'Pago completado al 100%'}</span>
+                        {repairItems.length > 0 && !hasPendingDebt && (
+                            <span className="text-emerald-400 font-black text-[10px] uppercase underline decoration-emerald-500/30">
+                                📦 Equipos marcados como ENTREGADOS
+                            </span>
+                        )}
+                    </div>
+                ),
                 icon: <CheckCircle2 className="text-emerald-500" />
             });
 
@@ -305,7 +327,14 @@ export default function PaymentModal({ isOpen, onClose }: PaymentModalProps) {
 
                                 {repairItems.length > 0 && (
                                     <>
-                                        <p className="text-xs font-bold text-finance uppercase tracking-widest mt-4">Servicios</p>
+                                        <div className="flex items-center justify-between mt-4">
+                                            <p className="text-xs font-bold text-finance uppercase tracking-widest">Servicios</p>
+                                            {!hasPendingDebt && (
+                                                <span className="text-[9px] font-black bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded border border-emerald-500/10 animate-pulse">
+                                                    ENTREGA INMEDIATA
+                                                </span>
+                                            )}
+                                        </div>
                                         <div className="space-y-2">
                                             {repairItems.map(item => (
                                                 <div key={item.repair.id} className="flex justify-between items-center text-sm p-3 glass-card border-white/5 border-l-2 border-l-finance">
@@ -317,6 +346,23 @@ export default function PaymentModal({ isOpen, onClose }: PaymentModalProps) {
                                                 </div>
                                             ))}
                                         </div>
+
+                                        {!hasPendingDebt && (
+                                            <div className="mt-4 p-4 rounded-xl bg-emerald-500/5 border border-emerald-500/10 space-y-2">
+                                                <div className="flex items-center gap-2 text-emerald-400">
+                                                    <CheckCircle2 size={16} />
+                                                    <span className="text-xs font-bold uppercase tracking-wider">Compromiso de Garantía</span>
+                                                </div>
+                                                <p className="text-[11px] text-slate-400 leading-relaxed">
+                                                    Al completar este pago, el equipo se marcará como <span className="text-white font-bold">ENTREGADO</span> y se activará una garantía de 7 días hábiles válida hasta el:
+                                                </p>
+                                                <div className="text-center py-2 bg-emerald-500/10 rounded-lg border border-emerald-500/20">
+                                                    <span className="text-lg font-black text-emerald-400">
+                                                        {warrantyDate.toLocaleDateString('es-ES', { day: '2-digit', month: 'long', year: 'numeric' })}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        )}
                                     </>
                                 )}
                             </div>

@@ -58,9 +58,12 @@ export const RepairCard = ({ order, isOverlay }: RepairCardProps) => {
                 <div className="flex justify-between items-start mb-2">
                     <div className="flex flex-col">
                         <span className="text-xs font-black text-slate-500">#{order.id.toString().padStart(5, '0')}</span>
-                        <span className="text-[10px] text-slate-600 font-mono">
-                            {format(new Date(order.created_at), 'dd MMM', { locale: es })}
-                        </span>
+                        <div className="flex flex-col text-[9px] font-mono leading-tight mt-0.5">
+                            <span className="text-slate-500">REC: {format(new Date(order.created_at), 'dd/MM/yy', { locale: es })}</span>
+                            {order.status === 'DELIVERED' && order.delivered_at && (
+                                <span className="text-emerald-500 font-bold">ENT: {format(new Date(order.delivered_at), 'dd/MM/yy', { locale: es })}</span>
+                            )}
+                        </div>
                     </div>
                     <StatusBadge status={order.status} />
                 </div>
@@ -82,9 +85,10 @@ export const RepairCard = ({ order, isOverlay }: RepairCardProps) => {
 
                 {/* Badges/Tags */}
                 <div className="flex flex-wrap gap-1 mb-2">
-                    {order.is_warranty_active && (
-                        <span className="text-[8px] font-black bg-emerald-500 text-white px-1.5 py-0.5 rounded uppercase tracking-tighter">
-                            Garantía
+                    {order.is_warranty_active && order.warranty_expiration && (
+                        <span className="text-[8px] font-black bg-emerald-500 text-white px-1.5 py-0.5 rounded uppercase tracking-tighter flex items-center gap-1">
+                            <HistoryIcon size={8} />
+                            Vence: {format(new Date(order.warranty_expiration), 'dd/MM', { locale: es })}
                         </span>
                     )}
                     {order.priority === 'URGENT' && (

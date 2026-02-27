@@ -50,6 +50,7 @@ export default function ReadyOrdersModal({ isOpen, onClose }: ReadyOrdersModalPr
             model: repair.device_model,
             remaining_balance: remaining,
             description: repair.problem_description || '',
+            status: repair.status,
             created_at: repair.created_at
         });
         onClose();
@@ -112,8 +113,8 @@ export default function ReadyOrdersModal({ isOpen, onClose }: ReadyOrdersModalPr
                                         onClick={() => !isAlreadyInCart && handleSelect(repair)}
                                         disabled={isAlreadyInCart}
                                         className={`w-full p-4 flex items-center justify-between rounded-xl border transition-all text-left ${isAlreadyInCart
-                                                ? 'opacity-50 cursor-not-allowed bg-white/2 border-white/5'
-                                                : 'hover:bg-white/5 border-white/5 hover:border-finance/30 group'
+                                            ? 'opacity-50 cursor-not-allowed bg-white/2 border-white/5'
+                                            : 'hover:bg-white/5 border-white/5 hover:border-finance/30 group'
                                             }`}
                                     >
                                         <div className="flex items-center gap-4">

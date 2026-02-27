@@ -20,6 +20,9 @@ export interface WorkOrderRead {
   parts_cost_usd: number;
   paid_amount_usd: number;
   created_at: string;
+  delivered_at?: string;
+  warranty_expiration?: string;
+  is_warranty_active?: boolean;
 }
 
 
