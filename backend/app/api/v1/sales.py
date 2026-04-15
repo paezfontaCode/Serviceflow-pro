@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import StreamingResponse
 import csv
 import io
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from decimal import Decimal
 from ...core.database import get_db
 from ...models.sale import Sale, SaleItem
@@ -244,7 +244,15 @@ def get_sales_history(
     search: Optional[str] = None
 ):
     """Returns sales history with filters and summary totals"""
-    query = db.query(Sale)
+    # Optimización: Usar joinedload para evitar queries N+1 al cargar relationships
+    # Esto carga en una sola query: items, customer y user (cashier)
+    # ANTES: query = db.query(Sale)
+    # DESPUÉS: Se usa options() con joinedload para eager loading de relationships
+    query = db.query(Sale).options(
+        joinedload(Sale.items),
+        joinedload(Sale.customer),
+        joinedload(Sale.user)
+    )
     
     if start_date:
         query = query.filter(func.date(Sale.created_at) >= start_date)
@@ -334,7 +342,15 @@ def read_sales(
     skip: int = 0,
     limit: int = 100
 ):
-    sales = db.query(Sale).order_by(Sale.created_at.desc()).offset(skip).limit(limit).all()
+    # Optimización: Usar joinedload para evitar queries N+1 al cargar relationships
+    # Esto carga en una sola query: items, customer y user (cashier)
+    # ANTES: sales = db.query(Sale).order_by(Sale.created_at.desc()).offset(skip).limit(limit).all()
+    # DESPUÉS: Se usa options() con joinedload para eager loading de relationships
+    sales = db.query(Sale).options(
+        joinedload(Sale.items),
+        joinedload(Sale.customer),
+        joinedload(Sale.user)
+    ).order_by(Sale.created_at.desc()).offset(skip).limit(limit).all()
     
     # Populate derived fields
     for s in sales:

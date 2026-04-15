@@ -5,11 +5,13 @@
 </p>
 
 <p align="center">
+  <img src="https://img.shields.io/badge/status-active-success?style=for-the-badge" alt="Status"/>
   <img src="https://img.shields.io/badge/FastAPI-009688?style=for-the-badge&logo=fastapi&logoColor=white" alt="FastAPI"/>
   <img src="https://img.shields.io/badge/React_18-61DAFB?style=for-the-badge&logo=react&logoColor=black" alt="React"/>
   <img src="https://img.shields.io/badge/PostgreSQL-336791?style=for-the-badge&logo=postgresql&logoColor=white" alt="PostgreSQL"/>
   <img src="https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white" alt="Docker"/>
   <img src="https://img.shields.io/badge/TypeScript-3178C6?style=for-the-badge&logo=typescript&logoColor=white" alt="TypeScript"/>
+  <img src="https://img.shields.io/badge/license-MIT-yellow?style=for-the-badge" alt="License"/>
 </p>
 
 ---
@@ -330,6 +332,171 @@ Documentación interactiva disponible en `/docs` (Swagger UI).
 
 ---
 
-## Licencia
+## 🗺️ Roadmap de Desarrollo
 
-Propiedad de **ServiceFlow Pro**. Todos los derechos reservados.
+### ✅ Fase 1 - Core (Completado)
+- [x] Autenticación JWT
+- [x] CRUD de ventas y reparaciones
+- [x] Sistema de abonos
+- [x] Inventario básico
+- [x] Facturación dual USD/VES
+
+### 🔄 Fase 2 - Avanzado (En progreso)
+- [ ] Dashboard analítico avanzado
+- [ ] Notificaciones push/email
+- [ ] Exportación a PDF/Excel mejorada
+- [ ] Roles y permisos avanzados
+- [ ] Auditoría de cambios en tiempo real
+
+### 📅 Fase 3 - Futuro
+- [ ] App móvil (React Native)
+- [ ] Integración con pasarelas de pago
+- [ ] Módulo de compras a proveedores
+- [ ] API pública para integraciones
+- [ ] Multi-tenant (SaaS)
+
+---
+
+## 🤝 Contributing Guidelines
+
+¡Las contribuciones son bienvenidas! Sigue estos pasos:
+
+### 1. Fork del Proyecto
+```bash
+git fork https://github.com/tu-usuario/serviceflow-pro.git
+```
+
+### 2. Crear Rama de Feature
+```bash
+git checkout -b feature/nueva-funcionalidad
+```
+
+### 3. Desarrollar
+- Escribe tests para nuevas funcionalidades
+- Mantén el código formateado (`black`, `isort`)
+- Sigue las convenciones de nombres existentes
+- Documenta cambios importantes
+
+### 4. Commit Messages
+Usa [Conventional Commits](https://www.conventionalcommits.org/):
+```
+feat: agregar reporte de ventas mensuales
+fix: corregir cálculo de IVA en abonos
+docs: actualizar README con ejemplos
+refactor: optimizar queries de inventory
+test: agregar tests para modelo Sale
+```
+
+### 5. Pull Request
+- Describe claramente los cambios
+- Incluye screenshots si aplica
+- Asegúrate que todos los tests pasan
+- Solicita review a mantenedores
+
+### Código de Conducta
+- Sé respetuoso con otros contribuidores
+- Proporciona feedback constructivo
+- Mantén un ambiente inclusivo
+
+---
+
+## 🛠️ Comandos Útiles
+
+### Backend
+```bash
+# Instalar dependencias
+pip install -r backend/requirements.txt
+
+# Ejecutar tests
+pytest backend/tests -v
+
+# Tests con coverage
+pytest backend/tests --cov=backend/app --cov-report=html
+
+# Linting
+flake8 backend/app
+black backend/app --check
+isort backend/app --check
+
+# Type checking
+mypy backend/app
+
+# Crear migración
+alembic revision --autogenerate -m "Descripción del cambio"
+
+# Aplicar migraciones
+alembic upgrade head
+```
+
+### Frontend
+```bash
+cd frontend
+
+# Instalar dependencias
+npm install
+
+# Desarrollo
+npm run dev
+
+# Build producción
+npm run build
+
+# Linting
+npm run lint
+```
+
+### Pre-commit Hooks
+```bash
+# Instalar hooks
+pip install pre-commit
+pre-commit install
+
+# Ejecutar manualmente
+pre-commit run --all-files
+```
+
+---
+
+## 📄 License
+
+Este proyecto está bajo la licencia **MIT**.
+
+```
+Copyright (c) 2024 ServiceFlow Pro
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+```
+
+---
+
+## 📞 Soporte y Contacto
+
+- 📧 Email: soporte@serviceflow.pro
+- 💬 Issues: [GitHub Issues](https://github.com/tu-usuario/serviceflow-pro/issues)
+- 📚 Wiki: [Documentación Completa](https://github.com/tu-usuario/serviceflow-pro/wiki)
+
+---
+
+<div align="center">
+
+**Hecho con ❤️ para talleres de servicio técnico**
+
+⭐ Si te gusta este proyecto, ¡dale una estrella!
+
+</div>

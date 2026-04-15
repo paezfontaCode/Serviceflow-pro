@@ -51,6 +51,7 @@ async def lifespan(app: FastAPI):
     from .services.currency_service import CurrencyService
     from .core.database import SessionLocal
     import asyncio
+    import random
     
     async def schedule_currency_updates():
         while True:
@@ -61,10 +62,14 @@ async def lifespan(app: FastAPI):
                     await CurrencyService.update_official_rate(db)
                 finally:
                     db.close()
+                logger.info("Currency update completed successfully, waiting 4 hours")
+                await asyncio.sleep(14400)  # 4 hours
             except Exception as e:
-                logger.error(f"Error in scheduled currency update: {e}")
-            # Wait 4 hours (4 * 3600 seconds)
-            await asyncio.sleep(4 * 3600)
+                logger.error(f"Error in scheduled currency update: {e}", exc_info=True)
+                # Exponential backoff: wait between 1-4 hours before retry
+                backoff_seconds = random.uniform(3600, 14400)
+                logger.info(f"Retrying currency update in {backoff_seconds:.0f} seconds")
+                await asyncio.sleep(backoff_seconds)
             
     asyncio.create_task(schedule_currency_updates())
     
