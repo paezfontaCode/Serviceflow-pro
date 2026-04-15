@@ -1,6 +1,7 @@
 from sqlalchemy import Column, Integer, String, DECIMAL, ForeignKey, DateTime, Text
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
+from decimal import Decimal
 from .base import Base
 
 class Repair(Base):
@@ -44,32 +45,59 @@ class Repair(Base):
     sale_links = relationship("SaleRepair", back_populates="repair")
 
     @property
-    def parts_cost_usd(self):
+    def parts_cost_usd(self) -> Decimal:
         """Calculate total cost of parts used"""
         if not self.items:
-            return 0
-        return sum((item.unit_cost_usd or 0) * item.quantity for item in self.items)
+            return Decimal("0")
+        total = Decimal("0")
+        for item in self.items:
+            unit_cost = Decimal(str(item.unit_cost_usd)) if item.unit_cost_usd is not None else Decimal("0")
+            quantity = Decimal(str(item.quantity)) if item.quantity is not None else Decimal("0")
+            total += unit_cost * quantity
+        return total
 
     @property
-    def is_warranty_active(self):
-        """Check if warranty is currently valid"""
-        import datetime
-        from sqlalchemy.sql import func
+    def is_warranty_active(self) -> bool:
+        """Check if warranty is currently valid.
+        
+        Uses timezone-safe comparison by normalizing both dates to UTC.
+        If warranty_expiration is naive (no timezone), assumes UTC.
+        """
+        from datetime import datetime, timezone
+        
         if not self.warranty_expiration:
             return False
-        # Handle both offset-aware and naive datetime comparison if needed
-        # For simplicity, we compare with current time
-        now = datetime.datetime.now(self.warranty_expiration.tzinfo) if self.warranty_expiration.tzinfo else datetime.datetime.now()
-        return self.warranty_expiration > now
+        
+        now = datetime.now(timezone.utc)
+        warranty = self.warranty_expiration
+        
+        # If warranty_expiration is naive, assume UTC
+        if warranty.tzinfo is None:
+            warranty = warranty.replace(tzinfo=timezone.utc)
+        
+        # Compare both in UTC
+        return warranty > now
 
     @property
-    def total_cost_usd(self):
-        """Unified cost: final_cost > estimated_cost > (labor + parts)"""
-        if self.final_cost_usd is not None and self.final_cost_usd > 0:
-            return self.final_cost_usd
-        if self.estimated_cost_usd is not None and self.estimated_cost_usd > 0:
-            return self.estimated_cost_usd
-        return (self.labor_cost_usd or 0) + (self.parts_cost_usd or 0)
+    def total_cost_usd(self) -> Decimal:
+        """Unified cost calculation with priority: final_cost > estimated_cost > calculated.
+        
+        Priority order:
+        1. If final_cost_usd is not None, use max(Decimal("0"), final_cost_usd)
+        2. Else if estimated_cost_usd is not None, use max(Decimal("0"), estimated_cost_usd)
+        3. Else calculate as labor_cost_usd + parts_cost_usd
+        
+        All values are normalized to Decimal type.
+        """
+        if self.final_cost_usd is not None:
+            return max(Decimal("0"), Decimal(str(self.final_cost_usd)))
+        
+        if self.estimated_cost_usd is not None:
+            return max(Decimal("0"), Decimal(str(self.estimated_cost_usd)))
+        
+        labor = Decimal(str(self.labor_cost_usd)) if self.labor_cost_usd is not None else Decimal("0")
+        parts = self.parts_cost_usd
+        return labor + parts
 
     @property
     def customer_name(self):

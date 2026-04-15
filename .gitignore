@@ -1,40 +1,40 @@
-# Python
-backend/venv/
-backend/.venv/
+```
+# Dependencies
 __pycache__/
-*.py[cod]
-*$py.class
-
-# Node / Frontend
-node_modules/
-frontend/node_modules/
-dist/
-build/
-
-# Entorno y Secretos
+*.pyc
+*.pyo
+*.pyd
 .env
 .env.local
-backend/.env
-
-# Base de datos local
-postgres_data/
-backups/
-
-# Otros
-.DS_Store
-*.log
+.env.*
 
 # Testing
-*.db
-test.db
-.pytest_cache/
-htmlcov/
 .coverage
+coverage/
+htmlcov/
+.pytest_cache/
+.mypy_cache/
 
-# Archivos obsoletos (no commitear)
-.env.localprod
-*.bak
-.agent/
+# Build artifacts
+dist/
+build/
+*.egg-info/
 
+# Editors
+.vscode/
+.idea/
+*.swp
+*.swo
 
+# Logs
+*.log
 
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# OS
+.DS_Store
+Thumbs.db
+```
