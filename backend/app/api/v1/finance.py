@@ -9,7 +9,7 @@ from ...schemas.finance import (
     ExchangeRateCreate, ExchangeRateRead, 
     CashSessionCreate, CashSessionRead, CashSessionClose
 )
-from ..deps import get_current_active_user
+from ..deps import get_current_active_user, transaction_wrapper
 from ...core.cache import cache
 from ...services.audit_service import AuditService
 
@@ -22,34 +22,39 @@ def create_exchange_rate(
     db: Session = Depends(get_db),
     current_user = Depends(get_current_active_user)
 ):
+    """
+    Crear o actualizar la tasa de cambio del día.
+    
+    Usa transaction_wrapper para garantizar atomicidad en las operaciones.
+    """
     from datetime import date
-    today = date.today()
     
-    # Check if a rate for today already exists
-    existing_rate = db.query(ExchangeRate).filter(ExchangeRate.effective_date == today).first()
-    
-    if existing_rate:
-        # Update existing rate
-        existing_rate.rate = rate_in.rate
-        existing_rate.source = rate_in.source
-        db.commit()
-        db.refresh(existing_rate)
-        return existing_rate
-
-    db.query(ExchangeRate).filter(ExchangeRate.is_active == True).update({"is_active": False})
-    
-    db_rate = ExchangeRate(
-        **rate_in.model_dump(),
-        is_active=True
-    )
-    db.add(db_rate)
-    db.commit()
-    db.refresh(db_rate)
-    
-    # Invalidate cache
-    cache.delete("current_exchange_rate")
-    
-    return db_rate
+    with transaction_wrapper(db):
+        today = date.today()
+        
+        # Check if a rate for today already exists
+        existing_rate = db.query(ExchangeRate).filter(ExchangeRate.effective_date == today).first()
+        
+        if existing_rate:
+            # Update existing rate
+            existing_rate.rate = rate_in.rate
+            existing_rate.source = rate_in.source
+            db.refresh(existing_rate)
+            rate_result = existing_rate
+        else:
+            db.query(ExchangeRate).filter(ExchangeRate.is_active == True).update({"is_active": False})
+            
+            db_rate = ExchangeRate(
+                **rate_in.model_dump(),
+                is_active=True
+            )
+            db.add(db_rate)
+            rate_result = db_rate
+        
+        # Invalidate cache
+        cache.delete("current_exchange_rate")
+        
+        return rate_result
 
 @router.get("/exchange-rates/current/", response_model=ExchangeRateRead)
 def get_current_rate(db: Session = Depends(get_db)):

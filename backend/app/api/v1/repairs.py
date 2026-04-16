@@ -12,7 +12,7 @@ from ...models.repair import Repair, RepairItem, RepairLog
 from ...models.inventory import Product, Inventory
 from ...models.finance import Payment, CashTransaction, CashSession, ExchangeRate
 from ...schemas.repair import RepairCreate, RepairRead, RepairUpdate, RepairItemCreate, RepairItemRead, RepairPaymentCreate
-from ..deps import get_current_active_user
+from ..deps import get_current_active_user, transaction_wrapper
 from ...utils.pdf_generator import PDFGenerator
 from ...services.whatsapp_service import WhatsAppService
 from reportlab.platypus import Paragraph, Spacer, Table, KeepTogether, SimpleDocTemplate
@@ -97,12 +97,17 @@ def create_repair(
     db: Session = Depends(get_db),
     current_user = Depends(get_current_active_user)
 ):
+    """
+    Crear una nueva orden de reparación con consumo de repuestos.
+    
+    Usa transaction_wrapper para manejo consistente de transacciones.
+    """
     # Extract items_to_consume before creating repair
     items_to_consume = repair_in.items_to_consume or []
     repair_data = repair_in.model_dump(exclude={"items_to_consume"})
     
     # Create repair record
-    try:
+    with transaction_wrapper(db):
         db_repair = Repair(**repair_data, status="RECEIVED", created_by_id=current_user.id)
         db.add(db_repair)
         db.flush()  # Get repair ID without committing
@@ -148,16 +153,8 @@ def create_repair(
         log = RepairLog(repair_id=db_repair.id, user_id=current_user.id, status_to="RECEIVED", notes="Reparación recibida")
         db.add(log)
         
-        db.commit()
         db.refresh(db_repair)
         return db_repair
-
-    except HTTPException as e:
-        db.rollback()
-        raise e
-    except Exception as e:
-        db.rollback()
-        raise HTTPException(status_code=500, detail=f"Error al crear la orden: {str(e)}")
 
 
 @router.put("/{repair_id}", response_model=RepairRead)
