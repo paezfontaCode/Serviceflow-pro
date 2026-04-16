@@ -12,7 +12,7 @@ from ...models.inventory import Product, Inventory
 from ...models.finance import ExchangeRate, CashSession, Payment, CashTransaction
 from ...models.repair import Repair, RepairLog
 from ...schemas.sale import SaleCreate, SaleRead, SaleReturnCreate, SaleReturnRead
-from ..deps import get_current_active_user
+from ..deps import get_current_active_user, get_active_cash_session, get_current_exchange_rate, payment_transaction_wrapper
 from datetime import date, timedelta, datetime, timezone
 from ...models.finance import AccountReceivable
 from ...models.customer import Customer
@@ -26,30 +26,26 @@ router = APIRouter(tags=["sales"])
 def create_sale(
     sale_in: SaleCreate,
     db: Session = Depends(get_db),
-    current_user = Depends(get_current_active_user)
+    current_user = Depends(get_current_active_user),
+    session: CashSession = Depends(get_active_cash_session),
+    rate: ExchangeRate = Depends(get_current_exchange_rate)
 ):
-    # 1. Verificar sesión de caja abierta
-    session = db.query(CashSession).filter(
-        CashSession.user_id == current_user.id,
-        CashSession.status == "open"
-    ).first()
-    if not session:
-        raise HTTPException(status_code=400, detail="Debes abrir una sesión de caja antes de realizar ventas.")
-
-    # 2. Obtener tasa de cambio activa
-    rate = db.query(ExchangeRate).filter(ExchangeRate.is_active == True).order_by(ExchangeRate.effective_date.desc()).first()
-    if not rate:
-        raise HTTPException(status_code=400, detail="No hay una tasa de cambio activa. Por favor, configúrela primero.")
+    """
+    Crear una nueva venta con validación de stock y procesamiento de pagos.
     
+    Usa dependencies reutilizables para:
+    - Verificar sesión de caja activa
+    - Obtener tasa de cambio vigente
+    - Manejo consistente de transacciones
+    """
     total_usd = Decimal(0)
     repair_total_usd = Decimal(0)
     db_items = []
     processed_repairs = []
     
     # 3. Procesar items de productos con bloqueo de stock
-    try:
-        with db.begin_nested():
-            for item_in in sale_in.items:
+    with payment_transaction_wrapper(db):
+        for item_in in sale_in.items:
                 product = db.query(Product).filter(Product.id == item_in.product_id).with_for_update().first()
                 if not product:
                     raise HTTPException(status_code=404, detail=f"Producto {item_in.product_id} no encontrado")
@@ -219,16 +215,10 @@ def create_sale(
                 )
                 db.add(log)
 
-        db.commit()
-        db.refresh(db_sale)
-        return db_sale
-
-    except HTTPException:
-        db.rollback()
-        raise
-    except Exception as e:
-        db.rollback()
-        raise HTTPException(status_code=500, detail=f"Error al procesar la venta: {str(e)}")
+            # El commit se realiza automáticamente en payment_transaction_wrapper
+            db.refresh(db_sale)
+            return db_sale
+        # El rollback se maneja automáticamente en caso de excepción
 
 
 @router.get("/history")

@@ -1,6 +1,7 @@
 from pydantic_settings import BaseSettings
 from pydantic import field_validator
 from typing import Optional, List
+from decimal import Decimal
 import secrets
 
 
@@ -33,6 +34,17 @@ class Settings(BaseSettings):
     
     # Logging
     LOG_LEVEL: str = "INFO"
+    
+    # Business Logic Constants
+    PAYMENT_TOLERANCE: Decimal = Decimal('0.01')
+    DEFAULT_WARRANTY_DAYS: int = 30
+    DEFAULT_MIN_STOCK: int = 5
+    MAX_PAGINATION_SIZE: int = 100
+    DEFAULT_PAGINATION_SIZE: int = 20
+    
+    # WhatsApp
+    WHATSAPP_API_TOKEN: Optional[str] = None
+    WHATSAPP_PHONE_ID: Optional[str] = None
     
     @field_validator("SECRET_KEY")
     @classmethod
