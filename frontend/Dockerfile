@@ -25,7 +25,7 @@ RUN npm run build
 FROM nginx:stable-alpine AS production-stage
 
 # Install wget for healthcheck
-RUN apk add --no-cache wget
+RUN apk update && apk add --no-cache wget
 
 # Copy built assets from build stage
 COPY --from=build-stage /app/dist /usr/share/nginx/html
